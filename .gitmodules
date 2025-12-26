@@ -1,0 +1,6 @@
+[submodule "include/pysmaplus"]
+	path = src/include/pysmaplus
+	url = https://github.com/littleyoda/pysma
+[submodule "src/include/sma_em"]
+	path = src/include/sma_em
+	url = https://github.com/datenschuft/SMA-EM.git

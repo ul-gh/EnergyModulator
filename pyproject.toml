@@ -1,0 +1,62 @@
+[project]
+name = "energy_modulator"
+description = "Energy Metering Protocol Gateway for Grid-Coupled Inverter Power Control."
+readme = "README.md"
+authors = [
+    {"name" = "Ulrich Lukas", "email" = "opensource@lukas-elektronik.de"},
+]
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+dynamic = ["version"]
+dependencies = [
+    "pydantic",
+    "pymodbus",
+    "pyserial",
+    "paho-mqtt",
+    "aiomqtt",
+]
+requires-python = ">=3.12"
+
+[project.scripts]
+energy_modulator = "energy_modulator.main:main"
+
+[build-system]
+requires = ["setuptools", "setuptools-git-versioning", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["include"]
+namespaces = false
+
+[tool.setuptools.package-data]
+#energy_modulator = ["*.toml"]
+
+[tool.setuptools-git-versioning]
+enabled = true
+
+[tool.ruff]
+# Set line length
+line-length = 120
+# Exclude specific directories
+exclude = [
+    "include",
+    "venv", 
+    ".eggs",
+    ".git",
+    ".venv",
+    "__pycache__",
+    "node_modules",
+]
+
+[tool.ruff.lint]
+ignore = [
+    #"E501",  # line too long
+]
+fixable = ["ALL"]
+#unfixable = []
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
