@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import sys
 
 from energy_modulator.conf.energy_modulator_config import LocalLoggerConfig as conf
 from energy_modulator.store import EnergyModulatorStore
@@ -20,7 +21,7 @@ class LocalLogger:
         self.store = store
         # Logger configuration
         self.logger = logging.Logger(__name__)
-        console_handler = logging.StreamHandler()
+        console_handler = logging.StreamHandler(sys.stdout)
         formatter = logging.Formatter(fmt="%(asctime)s, %(message)s", datefmt="%Y-%m-%d, %H:%M:%S")
         console_handler.setFormatter(formatter)
         self.logger.addHandler(console_handler)
