@@ -9,10 +9,16 @@ from energy_modulator.store import EnergyModulatorStore
 
 
 class LocalLogger:
-    """Log output of meter active power readings for total, L1, L2 and L3.
+    """CSV log output of meter active power readings for total, L1, L2 and L3.
 
     Note: Log level is logging.INFO.
     Normal loglevel is logging.WARNING i.e. screen output is OFF by default.
+
+    CSV line format:
+    Date, Time, Property, Unit, ch_name, ch_name, ch_name_name, value, value, value, value
+
+    Example output:
+    2025-12-26, 10:53:36, Active Power, W, Total, L1, L2, L3, xxx, xxx, xxx, xxx
     """
 
     def __init__(self, store: EnergyModulatorStore) -> None:
