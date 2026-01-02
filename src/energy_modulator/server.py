@@ -4,7 +4,9 @@ See documentation in README.md.
 """
 import asyncio
 import logging
-import threading
+
+from typing import Self
+from types import TracebackType
 
 #from energy_modulator.conf.energy_modulator_config import EnergyModulatorServerConfig as conf
 from energy_modulator.store import EnergyModulatorStore
@@ -18,7 +20,6 @@ logger = logging.getLogger(__name__)
 class EnergyModulatorServer:
     """Energy Modulator Server App."""
 
-    main_thread: threading.Thread
     sma_em_receiver: SmaEmReceiver
 
 
@@ -44,10 +45,25 @@ class EnergyModulatorServer:
             self.tasks.append(tg.create_task(self.local_logger.run_forever(), name="local_logger"))
 
 
-    def cancel_tasks(self) -> None:
-        """Cancel all tasks."""
+    def stop(self) -> None:
+        """Cancel all EnergyModulatorServer tasks."""
         for task in self.tasks:
             task.cancel()
-        self.tasks = []
-        self.main_thread.join()
-        logger.info("Stopped app running in thread id: %s", self.main_thread)
+        self.tasks.clear()
+        logger.info("Cancelled EnergyModulatorServer tasks.")
+
+
+    def __enter__(self) -> Self:
+        """Initialize and return self as context manager."""
+        return self
+    
+
+    def __exit__(
+            self,
+            exc_t: type[BaseException] | None,
+            exc_v: BaseException | None,
+            exc_tb: TracebackType | None,
+        ) -> bool:
+        """Context manager exit method."""
+        self.stop()
+        return exc_t is None

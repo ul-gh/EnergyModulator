@@ -59,7 +59,7 @@ class Sdm630Emulator:
             "ProductCode": "EnergyModulator",
             "VendorUrl": "https://github.com/ul-gh/energy_modulator/",
             "ProductName": "EnergyModulator",
-            "ModelName": "SDM630Emulator",
+            "ModelName": "Sdm630Emulator",
             "MajorMinorRevision": conf.version,
         })
         self.server = ModbusSerialServer(
@@ -95,7 +95,7 @@ class Sdm630Emulator:
         return list(struct.unpack(">hh", float32_big_endian_bytes))
 
     async def set_power(self, power: float) -> None:
-        """Set emulated total active power by setting all phases to equal thirds."""
+        """Set emulated total active power by setting all phases to a third of the total power."""
         per_phase_reg_vals: list[int] = self.float_to_big_endian_reg_vals(1.0/3 * power)
         # Replicate the list items three times for L1, L2 and L3
         l1_l2_l3_vals = per_phase_reg_vals * 3

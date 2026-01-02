@@ -38,16 +38,16 @@ main_thread: threading.Thread
 def run_server() -> None:
     """Run app in foreground (also as a system service)."""
     global app
-    app = EnergyModulatorServer()
-    try:
-        asyncio.run(app.run())
-    except KeyboardInterrupt:
-        # Suppress sys.exit() when running interactively.
-        if "get_ipython" not in locals():
-            sys.exit(0)
-    except Exception:  # noqa: BLE001
-        # Main task should never terminate.
-        sys.exit(1)
+    with EnergyModulatorServer() as app:
+        try:
+            asyncio.run(app.run())
+        except KeyboardInterrupt:
+            # Suppress sys.exit() when running interactively.
+            if "get_ipython" not in locals():
+                sys.exit(0)
+        except Exception:  # noqa: BLE001
+            # Main task should never terminate.
+            sys.exit(1)
 
 
 def start() -> None:
