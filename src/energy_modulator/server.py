@@ -47,10 +47,11 @@ class EnergyModulatorServer:
 
     def stop(self) -> None:
         """Cancel all EnergyModulatorServer tasks."""
+        logger.info("EnergyModulatorServer.stop() called..")
+        self.sma_em_receiver.stop()
         for task in self.tasks:
             task.cancel()
         self.tasks.clear()
-        logger.info("Cancelled EnergyModulatorServer tasks.")
 
 
     def __enter__(self) -> Self:

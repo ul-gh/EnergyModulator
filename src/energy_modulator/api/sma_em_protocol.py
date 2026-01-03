@@ -1,9 +1,72 @@
+# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false
 import asyncio
 import logging
+from typing import TYPE_CHECKING, Any
 
-from energy_modulator.store import EnergyModulatorStore
+from pysmaplus.definitions_speedwire import speedwireHeader, speedwireHeader6069
+
+if TYPE_CHECKING:
+    from energy_modulator.api.sma_em_receiver import SmaEmReceiver
 
 logger = logging.getLogger(__name__)
+
+
+def decode_speedwire_em_datagram(p: bytes, addr: tuple[str, int]) -> dict[str, Any]:
+    """Decode a Speedwire-Packet
+
+    Args:
+        p: Network-Packet
+
+    Returns:
+        dict: Dict with all the decoded information
+
+    Decode function based on pysmaplus@5e49754ecc73af0e5a5ff02b36afc7a164ce3684
+    (https://github.com/littleyoda/pysma).
+    
+    This has been stripped off debug information.
+    """
+    sw = speedwireHeader.from_packed(p[0:18])
+    if not sw.check6069():
+        return {}
+    sw6069 = speedwireHeader6069.from_packed(p[18:28])
+    data: dict[str, Any] = {}
+    data["protocolID"] = sw.protokoll
+    data["susyid"] = sw6069.src_susyid
+    data["device"] = "SHM2/EM"
+    data["serial"] = sw6069.src_serial
+    data["ip"] = addr[0] + ":" + str(addr[1])
+    length = sw.smanet2_length + 16
+    pos = 28
+    while pos < length:
+        value: Any = None
+        mchannel = int.from_bytes(p[pos : pos + 1], byteorder="big")
+        mvalueindex = int.from_bytes(p[pos + 1 : pos + 2], byteorder="big")
+        mtyp = int.from_bytes(p[pos + 2 : pos + 3], byteorder="big")
+        mtariff = int.from_bytes(p[pos + 3 : pos + 4], byteorder="big")
+        obis = f"{mvalueindex}:{mtyp}:{mtariff}"
+        if mtyp in [4, 8]:
+            # 4 actucal / current => 8 Bytes
+            # 8 counter / sum => 12 Bytes
+            value = int.from_bytes(p[pos + 4 : pos + 4 + mtyp], byteorder="big")
+            pos += 4 + mtyp
+        elif mchannel == 144 and mtyp == 0:
+            value = f"{p[pos + 4]}.{p[pos + 5]}.{p[pos + 6]}.{chr(p[pos + 7])}"
+            obis = "sw_version"
+            pos += 4 + 4
+        else:
+            logger.debug(
+                "Unknown packet in speedwire: "
+                + str(mchannel)
+                + " "
+                + str(mvalueindex)
+                + " "
+                + str(mtyp)
+                + " "
+                + str(mtariff)
+            )
+            pos += 4 + 4
+        data[obis] = value
+    return data
 
 
 class SmaEmProtocol(asyncio.DatagramProtocol):
@@ -14,13 +77,12 @@ class SmaEmProtocol(asyncio.DatagramProtocol):
 
     def __init__(
             self,
+            receiver: "SmaEmReceiver",
             connection_lost: asyncio.Future[None],
-            store: EnergyModulatorStore,
         ) -> None:
         """Initialize SmaEmProtocol."""
-        # Awaited in application in an endless loop for connection supervision.
+        self._receiver = receiver
         self._connection_lost = connection_lost
-        self.store = store
 
     def connection_made(self, transport: asyncio.DatagramTransport) -> None:
         """Callback called when a connection is made.
@@ -32,9 +94,21 @@ class SmaEmProtocol(asyncio.DatagramProtocol):
         self._transport_udp = transport
         logger.info("Connection made..")
 
-    def datagram_received(self, data: bytes, addr: tuple[str, int]) -> None:  # noqa: ARG002
+    def datagram_received(self, data: bytes, addr: tuple[str, int]) -> None:
         """Callback called when a UDP datagram arrives."""
-        self.store.put_nowait(data)
+        receiver = self._receiver
+        if receiver.data_received.done():
+            return
+        try:
+            data_decoded = decode_speedwire_em_datagram(data, addr)
+            device_serial = str(data_decoded["serial"])
+        except KeyError:
+            return
+        if receiver.expected_device is not None and device_serial != receiver.expected_device:
+            msg = "Received telegram from different device serial number. Wanted: %s.  Got: %s"
+            logger.debug(msg, receiver.expected_device, device_serial)
+            return
+        receiver.data_received.set_result(data_decoded)
 
     def error_received(self, exc: Exception) -> None:
         """Callback called when a send or receive operation raises an OSError.

@@ -31,23 +31,15 @@ else:
     logging.basicConfig(level=logging.INFO)
 
 
-app: EnergyModulatorServer
+energy_modulator: EnergyModulatorServer
 main_thread: threading.Thread
 
 
 def run_server() -> None:
     """Run app in foreground (also as a system service)."""
-    global app
-    with EnergyModulatorServer() as app:
-        try:
-            asyncio.run(app.run())
-        except KeyboardInterrupt:
-            # Suppress sys.exit() when running interactively.
-            if "get_ipython" not in locals():
-                sys.exit(0)
-        except Exception:  # noqa: BLE001
-            # Main task should never terminate.
-            sys.exit(1)
+    global energy_modulator
+    with EnergyModulatorServer() as energy_modulator:
+        asyncio.run(energy_modulator.run())
 
 
 def start() -> None:
@@ -55,23 +47,35 @@ def start() -> None:
     global main_thread
     main_thread = threading.Thread(target=run_server, name="energy_modulator", daemon=False)
     main_thread.start()
-    logger.info("App running in background thread: %s", main_thread)
+    logger.info("App running in thread: %s", main_thread)
 
 
 def stop() -> None:
-    """Stop app."""
+    """Stop energy_modulator app."""
+    logger.info("main:stop() called..")
+    energy_modulator.stop()
     main_thread.join()
-    logger.info("Stopped app running in thread: %s", main_thread)
 
 
 def main():
     """Run Energy Modulator Server."""
-    if cmdline.daemon:
-        logger.info("Starting Energy Modulator Server in background thread.")
-        start()
-    else:
-        logger.info("Starting Energy Modulator Server")
-        run_server()
+    try:
+        if cmdline.daemon:
+            logger.info("Starting Energy Modulator Server in background thread.")
+            start()
+        else:
+            logger.info("Starting Energy Modulator Server")
+            run_server()
+    except KeyboardInterrupt:
+        # Suppress sys.exit() when running interactively.
+        stop()
+        if "get_ipython" not in locals():
+            sys.exit(0)
+    except Exception:  # noqa: BLE001
+        # Main task should never terminate.
+        logger.exception("Exception in main()!")
+        stop()
+        sys.exit(1)
 
 
 if __name__ == "__main__":

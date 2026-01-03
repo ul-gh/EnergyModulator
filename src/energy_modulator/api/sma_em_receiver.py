@@ -5,6 +5,7 @@
 import asyncio
 import logging
 import socket
+from typing import Any
 
 from energy_modulator.store import EnergyModulatorStore
 from energy_modulator.conf.energy_modulator_config import SmaEmReceiverConfig as conf
@@ -23,8 +24,12 @@ class SmaEmReceiver:
     Read-out values are obtained by callling the respective getter functions.
     """
 
+    expected_device: str | None = conf.EXPECTED_DEVICE
+    data_received: asyncio.Future[dict[str, Any]]
     _protocol: SmaEmProtocol
     _transport: asyncio.DatagramTransport | None = None
+    _udp_multicast_endpoint_task: asyncio.Task[None]
+    _data_processing_task: asyncio.Task[None]
 
 
     def __init__(self, store: EnergyModulatorStore) -> None:
@@ -33,20 +38,36 @@ class SmaEmReceiver:
 
 
     async def run_forever(self) -> None:
-        """Run and supervise UDP multicast endpoint task.
-
-        When the connection is lost, the endpoint task is re-started.
+        """Run UDP multicast endpoint task and data processing task.
         """
+        # Result set by protocol handler for SmaEmProtocol. Awaited in _run_data_processing.
+        self.data_received = asyncio.Future()
         while True:
-            try:
-                await self._run_udp_multicast_endpoint()
-            except Exception:
-                logger.exception("UDP multicast endpoint crashed!")
-            logger.warning("Restarting _run_udp_multicast_endpoint task..")
+            async with asyncio.TaskGroup() as tg:
+                logger.info("Launching SmaEmReceiver tasks...")
+                self._udp_multicast_endpoint_task = tg.create_task(
+                    self._run_udp_multicast_endpoint(), name="udp_multicast_endpoint_task"
+                )
+                # Must be started after
+                self._data_processing_task = tg.create_task(
+                    self._run_data_processing(), name="data_processing_task"
+                )
+    
+    def stop(self) -> None:
+        """Cancel all SmaEmReceiver tasks."""
+        logger.info("SmaEmReceiver.stop() called..")
+        self._data_processing_task.cancel()
+        self._udp_multicast_endpoint_task.cancel()
 
+    async def _run_data_processing(self) -> None:
+        """Decode received datagrams and put values into app data store."""
+        loop = asyncio.get_running_loop()
+        while True:
+            await self.store.em_data.put(await self.data_received)
+            self.data_received = loop.create_future()
 
     async def _run_udp_multicast_endpoint(self) -> None:
-        """Receive incoming UDP multicast datagrams and fill buffer.
+        """Receive incoming UDP multicast datagrams.
 
         This adds a task running the UDP multicast endpoint to the event loop
         and then blocks (awaits a connection loss future) until the connection
@@ -58,36 +79,32 @@ class SmaEmReceiver:
         connection_lost = loop.create_future()
         sock = self._create_udp_multicast_socket()
         self._transport, self._protocol = await loop.create_datagram_endpoint(
-            lambda: SmaEmProtocol(connection_lost, self.store),
+            lambda: SmaEmProtocol(self, connection_lost),
             sock=sock,
         )
-        cancelled = False
         try:
             await connection_lost
-        except asyncio.CancelledError:
-            cancelled = True
         finally:
-            if not cancelled:
-                self._transport.close()
+            self._transport.close()
 
 
     def _create_udp_multicast_socket(self) -> socket.socket:
         # This can be socket.AF_INET (IPv4) or socket.AF_INET6 (IPv6).
         address_family = socket.getaddrinfo(conf.MULTICAST_GROUP, None)[0][0]
-        if address_family != socket.getaddrinfo(conf.MULTICAST_INTERFACE, None)[0][0]:
-            msg = "MULTICAST_GROUP and MULTICAST_INTERFACE must be both IPv4 or IPv6, not mixed!"
+        if address_family != socket.getaddrinfo(conf.MULTICAST_BIND_ADDR, None)[0][0]:
+            msg = "MULTICAST_GROUP and MULTICAST_BIND_ADDR must be both IPv4 or IPv6, not mixed!"
             raise ValueError(msg)
         # Create socket and configure with multicast group membership request.
         sock = socket.socket(address_family, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
         ip_mreq = (socket.inet_pton(address_family, conf.MULTICAST_GROUP)
-                   + socket.inet_pton(address_family, conf.MULTICAST_INTERFACE))
+                   + socket.inet_pton(address_family, conf.MULTICAST_BIND_ADDR))
         if address_family == socket.AF_INET: # IPv4
             sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, ip_mreq)
         else:
             sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_JOIN_GROUP, ip_mreq)
         # Bind the socket to the interface address and port.
-        sock.bind((conf.MULTICAST_INTERFACE, conf.MULTICAST_PORT))
+        sock.bind((conf.MULTICAST_BIND_ADDR, conf.MULTICAST_PORT))
         return sock
 
