@@ -1,8 +1,8 @@
-# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false
+"""Protocol definition for async udp multicast endpoint and decoder for SMA EM datagrams."""
+# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportMissingTypeStubs=false
 import asyncio
 import logging
 from typing import TYPE_CHECKING, Any
-
 from pysmaplus.definitions_speedwire import speedwireHeader, speedwireHeader6069
 
 if TYPE_CHECKING:

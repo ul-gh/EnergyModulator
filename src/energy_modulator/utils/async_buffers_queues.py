@@ -17,7 +17,7 @@ class HybridFifoQueue(asyncio.Queue[Any]):
         """Init AsyncReceiveQueue."""
         super().__init__(maxsize)
 
-    def put_nowait(self, item: bytes) -> None:
+    def put_nowait(self, item: Any) -> None:
         """Callback called when a UDP datagram arrives."""
         try:
             super().put_nowait(item)
