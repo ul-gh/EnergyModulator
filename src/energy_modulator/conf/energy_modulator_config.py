@@ -39,14 +39,14 @@ class SmaEmReceiverConfig:
     #### Settings for udp multicast endpoint.
     # Serial number of the SMA energy meter or SHM to receive.
     # If set to None, receive data from any meter device.
-    EXPECTED_DEVICE: str | None = "3007895701"
+    EXPECTED_DEVICE: int | None = 3007895701
     # MULTICAST_BIND_ADDR: str = "::"
     MULTICAST_GROUP: str = "239.12.255.254"
     MULTICAST_PORT: int = 9522
     # If there are multiple network interfaces, choose the one connected to SMA energy meter or SHM.
     MULTICAST_BIND_ADDR: str = "0.0.0.0"
     # Minimum length of valid datagrams. 608 bytes is consistent with other implementations.
-    DATAGRAM_MIN_SIZE: int = 608
+    DATAGRAM_MAX_SIZE: int = 608
     # Receive queue size. For real-time system control, outdated process data has
     # no relevance and thus we configure for only one queue entry which holds the
     # most recent values from the last received UDP datagram from the meter.

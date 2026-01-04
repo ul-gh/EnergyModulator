@@ -26,7 +26,8 @@ class LocalLogger:
         # Application data store
         self.store = store
         # Logger configuration
-        self.logger = logging.Logger(__name__)
+        root_logger_level = logging.getLogger().level
+        self.logger = logging.Logger(__name__, level=root_logger_level)
         console_handler = logging.StreamHandler(sys.stdout)
         formatter = logging.Formatter(fmt="%(asctime)s, %(message)s", datefmt="%Y-%m-%d, %H:%M:%S")
         console_handler.setFormatter(formatter)
@@ -40,4 +41,4 @@ class LocalLogger:
         while True:
             await asyncio.sleep(conf.LOG_INTERVAL)
             p_tot, p_l1, p_l2, p_l3 = await self.store.get_meter_power()
-            self.logger.info(msg, p_tot, p_l1, p_l2, p_l3)
+            self.logger.debug(msg, p_tot, p_l1, p_l2, p_l3)

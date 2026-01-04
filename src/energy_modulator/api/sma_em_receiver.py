@@ -5,11 +5,10 @@
 import asyncio
 import logging
 import socket
-from typing import Any
 
 from energy_modulator.store import EnergyModulatorStore
 from energy_modulator.conf.energy_modulator_config import SmaEmReceiverConfig as conf
-from energy_modulator.api.sma_em_protocol import SmaEmProtocol
+from energy_modulator.api.sma_em_protocol import SmaEmProtocol, EmDataDecoded
 
 
 logger = logging.getLogger(__name__)
@@ -24,8 +23,8 @@ class SmaEmReceiver:
     Read-out values are obtained by callling the respective getter functions.
     """
 
-    expected_device: str | None = conf.EXPECTED_DEVICE
-    data_received: asyncio.Future[dict[str, Any]]
+    expected_device: int | None = conf.EXPECTED_DEVICE
+    data_received: asyncio.Future[EmDataDecoded]
     _protocol: SmaEmProtocol
     _transport: asyncio.DatagramTransport | None = None
     _udp_multicast_endpoint_task: asyncio.Task[None]

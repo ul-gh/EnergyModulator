@@ -10,7 +10,10 @@ import logging
 import sys
 import threading
 
+from typing import Coroutine, Any
+
 from energy_modulator.server import EnergyModulatorServer
+
 
 parser = argparse.ArgumentParser(prog=__package__, description=__doc__)
 parser.add_argument("-v", "--verbose", action="store_true",
@@ -22,7 +25,6 @@ parser.add_argument("-d", "--daemon", action="store_true",
 cmdline = parser.parse_args()
 
 
-logger = logging.getLogger(__name__)
 if cmdline.verbose:
     logging.basicConfig(level=logging.DEBUG)
 elif cmdline.quiet:
@@ -31,15 +33,25 @@ else:
     logging.basicConfig(level=logging.INFO)
 
 
-energy_modulator: EnergyModulatorServer
+logger = logging.getLogger("energy_modulator:main")
+server: EnergyModulatorServer
 main_thread: threading.Thread
+
+
+def mt_await(coro: Coroutine[Any, Any, object]) -> object:
+    """Run coroutine on the server event loop and return the result.
+    
+    Intended for diagnostics and debugging use when running in a REPL (IPython).
+    """
+    future = asyncio.run_coroutine_threadsafe(coro, server.loop)
+    return future.result()
 
 
 def run_server() -> None:
     """Run app in foreground (also as a system service)."""
-    global energy_modulator
-    with EnergyModulatorServer() as energy_modulator:
-        asyncio.run(energy_modulator.run())
+    global server
+    with EnergyModulatorServer() as server:
+        asyncio.run(server.run())
 
 
 def start() -> None:
@@ -52,8 +64,8 @@ def start() -> None:
 
 def stop() -> None:
     """Stop energy_modulator app."""
-    logger.info("main:stop() called..")
-    energy_modulator.stop()
+    logger.info("stop() called..")
+    server.stop()
     main_thread.join()
 
 

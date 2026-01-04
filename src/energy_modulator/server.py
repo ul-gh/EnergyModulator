@@ -20,7 +20,11 @@ logger = logging.getLogger(__name__)
 class EnergyModulatorServer:
     """Energy Modulator Server App."""
 
+    loop: asyncio.AbstractEventLoop
+    store: EnergyModulatorStore
+    local_logger: LocalLogger
     sma_em_receiver: SmaEmReceiver
+    sdm630_emulator: Sdm630Emulator
 
 
     def __init__(self) -> None:
@@ -34,6 +38,7 @@ class EnergyModulatorServer:
         Note: Log level is logging.INFO.
         Normal loglevel is logging.WARNING i.e. screen output is OFF by default.
         """
+        self.loop = asyncio.get_running_loop()
         self.store = EnergyModulatorStore()
         self.local_logger = LocalLogger(self.store)
         self.sma_em_receiver = SmaEmReceiver(self.store)

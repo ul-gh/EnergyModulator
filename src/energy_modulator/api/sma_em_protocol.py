@@ -1,17 +1,30 @@
 """Protocol definition for async udp multicast endpoint and decoder for SMA EM datagrams."""
-# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportMissingTypeStubs=false
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Any
-from pysmaplus.definitions_speedwire import speedwireHeader, speedwireHeader6069
 
+from dataclasses import dataclass
+from pysmaplus.definitions_speedwire import speedwireHeader, speedwireHeader6069
+from energy_modulator.conf.energy_modulator_config import SmaEmReceiverConfig as conf
+
+from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from energy_modulator.api.sma_em_receiver import SmaEmReceiver
 
 logger = logging.getLogger(__name__)
 
+@dataclass
+class EmDataDecoded:
+    protocolID: int
+    susyid: int
+    device: str
+    serial: int
+    ip: str
+    sw_version: str
+    # dict keys are OBIS IDs, e.g. "1:4:0"
+    measurements: dict[str, int]
 
-def decode_speedwire_em_datagram(p: bytes, addr: tuple[str, int]) -> dict[str, Any]:
+
+def decode_speedwire_em_datagram(p: bytes, addr: tuple[str, int]) -> EmDataDecoded:
     """Decode a Speedwire-Packet
 
     Args:
@@ -27,18 +40,20 @@ def decode_speedwire_em_datagram(p: bytes, addr: tuple[str, int]) -> dict[str, A
     """
     sw = speedwireHeader.from_packed(p[0:18])
     if not sw.check6069():
-        return {}
+        raise ValueError("Decoding speedwire packed failed. Wrong header!")
     sw6069 = speedwireHeader6069.from_packed(p[18:28])
-    data: dict[str, Any] = {}
-    data["protocolID"] = sw.protokoll
-    data["susyid"] = sw6069.src_susyid
-    data["device"] = "SHM2/EM"
-    data["serial"] = sw6069.src_serial
-    data["ip"] = addr[0] + ":" + str(addr[1])
+    data = EmDataDecoded(
+        protocolID=sw.protokoll,
+        susyid=sw6069.src_susyid,
+        device="SHM2/EM",
+        serial=sw6069.src_serial,
+        ip=addr[0] + ":" + str(addr[1]),
+        sw_version="",
+        measurements={},
+    )
     length = sw.smanet2_length + 16
     pos = 28
-    while pos < length:
-        value: Any = None
+    while pos < min(length, conf.DATAGRAM_MAX_SIZE):
         mchannel = int.from_bytes(p[pos : pos + 1], byteorder="big")
         mvalueindex = int.from_bytes(p[pos + 1 : pos + 2], byteorder="big")
         mtyp = int.from_bytes(p[pos + 2 : pos + 3], byteorder="big")
@@ -48,24 +63,16 @@ def decode_speedwire_em_datagram(p: bytes, addr: tuple[str, int]) -> dict[str, A
             # 4 actucal / current => 8 Bytes
             # 8 counter / sum => 12 Bytes
             value = int.from_bytes(p[pos + 4 : pos + 4 + mtyp], byteorder="big")
+            data.measurements[obis] = value
             pos += 4 + mtyp
         elif mchannel == 144 and mtyp == 0:
             value = f"{p[pos + 4]}.{p[pos + 5]}.{p[pos + 6]}.{chr(p[pos + 7])}"
-            obis = "sw_version"
+            data.sw_version = value
             pos += 4 + 4
         else:
-            logger.debug(
-                "Unknown packet in speedwire: "
-                + str(mchannel)
-                + " "
-                + str(mvalueindex)
-                + " "
-                + str(mtyp)
-                + " "
-                + str(mtariff)
-            )
-            pos += 4 + 4
-        data[obis] = value
+            # If we silently ignore this here, position has to be increased:
+            # pos += 4 + 4
+            raise ValueError("Decoding speedwire packed failed. Invalid data!")
     return data
 
 
@@ -101,12 +108,12 @@ class SmaEmProtocol(asyncio.DatagramProtocol):
             return
         try:
             data_decoded = decode_speedwire_em_datagram(data, addr)
-            device_serial = str(data_decoded["serial"])
-        except KeyError:
+        except (KeyError, ValueError, TypeError, UnicodeDecodeError) as e:
+            logger.error("Error decoding SMA EM datagram: %s", e.args[0])
             return
-        if receiver.expected_device is not None and device_serial != receiver.expected_device:
-            msg = "Received telegram from different device serial number. Wanted: %s.  Got: %s"
-            logger.debug(msg, receiver.expected_device, device_serial)
+        if receiver.expected_device is not None and data_decoded.serial != receiver.expected_device:
+            msg = "Received telegram from different device serial number. Wanted: %d.  Got: %d"
+            logger.debug(msg, receiver.expected_device, data_decoded.serial)
             return
         receiver.data_received.set_result(data_decoded)
 
