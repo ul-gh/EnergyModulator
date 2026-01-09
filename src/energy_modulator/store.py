@@ -1,40 +1,48 @@
 """State storage for energy_modulator."""
-import asyncio
+
+from dataclasses import dataclass
+from typing import Callable
 
 from energy_modulator.api.sma_em_protocol import EmDataDecoded
-from energy_modulator.conf.energy_modulator_config import SmaEmReceiverConfig as em_receiver_config
-#from energy_modulator.utils.async_buffers_queues import HybridFifoQueue
+from energy_modulator.utils.async_buffers_queues import HybridItemBuffer
 
 
+@dataclass
+class EmReadings:
+    power_sum: float = float("NaN")
+    power_l1: float = float("NaN")
+    power_l2: float = float("NaN")
+    power_l3: float = float("NaN")
 
-class EnergyModulatorStore():
+
+class EnergyModulatorStore:
     """Application state representation for Energy Modulator Server.
-    
+
     This will commit state changes to the listeners.
     """
+
     def __init__(self) -> None:
         super().__init__()
-        self.em_data: asyncio.Queue[EmDataDecoded] = asyncio.Queue(em_receiver_config.RECV_QUEUE_SIZE)
+        self.em_readings: HybridItemBuffer[EmReadings] = HybridItemBuffer()
+        self._em_data_hooks: list[Callable[[EmReadings], None]] = []
 
-
-    async def get_meter_power(self) -> tuple[float, float, float, float]:
-        """Return total power (power sum), power L1, power L2 and power L3."""
-        # key='1:4:0', name='metering_power_absorbed', unit='W', factor=10,
-        # key='2:4:0', name='metering_power_supplied', unit='W', factor=10,
-        # key='21:4:0', name='metering_active_power_draw_l1', unit='W', factor=10,
-        # key='22:4:0', name='metering_active_power_feed_l1', unit='W', factor=10,
-        # key='41:4:0', name='metering_active_power_draw_l2', unit='W', factor=10,
-        # key='41:4:0', name='metering_active_power_draw_l2', unit='W', factor=10,
-        # key='61:4:0', name='metering_active_power_draw_l3', unit='W', factor=10,
-        # key='62:4:0', name='metering_active_power_feed_l3', unit='W', factor=10,
-        em_data = await self.em_data.get()
-        measurements = em_data.measurements
+    def set_em_data(self, data: EmDataDecoded) -> None:
+        """Input EM data readings. This triggers necessary actions."""
+        measurements = data.measurements
         try:
-            power_sum = (measurements["1:4:0"] - measurements["2:4:0"]) / 10.0
-            power_l1 = (measurements["21:4:0"] - measurements["22:4:0"]) / 10.0
-            power_l2 = (measurements["41:4:0"] - measurements["42:4:0"]) / 10.0
-            power_l3 = (measurements["61:4:0"] - measurements["62:4:0"]) / 10.0
+            readings = EmReadings(
+                power_sum=(measurements["1:4:0"] - measurements["2:4:0"]) / 10.0,
+                power_l1=(measurements["21:4:0"] - measurements["22:4:0"]) / 10.0,
+                power_l2=(measurements["41:4:0"] - measurements["42:4:0"]) / 10.0,
+                power_l3=(measurements["61:4:0"] - measurements["62:4:0"]) / 10.0,
+            )
         except (TypeError, KeyError, ValueError):
-            nan = float("nan")
-            return nan, nan, nan, nan
-        return power_sum, power_l1, power_l2, power_l3
+            # This sets "NaN" values for all power measurements.
+            readings = EmReadings()
+        self.em_readings.put_nowait(readings)
+        for hook in self._em_data_hooks:
+            hook(readings)
+
+    def add_em_data_hook(self, hook: Callable[[EmReadings], None]) -> None:
+        """Add callback for updating data context of SDM 630 emulator etc."""
+        self._em_data_hooks.append(hook)
