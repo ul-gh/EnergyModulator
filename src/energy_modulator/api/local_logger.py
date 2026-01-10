@@ -40,5 +40,5 @@ class LocalLogger:
         msg = "Active Power, W, Total, L1, L2, L3, %5.0f, %5.0f, %5.0f, %5.0f"
         while True:
             await asyncio.sleep(conf.LOG_INTERVAL)
-            p_tot, p_l1, p_l2, p_l3 = await self.store.get_meter_power()
-            self.logger.debug(msg, p_tot, p_l1, p_l2, p_l3)
+            readings = await self.store.em_readings.get()
+            self.logger.debug(msg, readings.power, readings.power_l1, readings.power_l2, readings.power_l3)

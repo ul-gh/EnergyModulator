@@ -6,23 +6,23 @@ import asyncio
 class HybridItemBuffer[ItemType]:
     """Buffering of sync input for async output.
 
-    This stores the latest value, overwriting any previous input.
+    This stores the latest value item, overwriting any previous input.
     Use where one task produces value items and one or more tasks consume these.
 
     The latest item can be repeatedly retrieved.
     """
 
     def __init__(self) -> None:
-        """Init AsyncReceiveBuffer."""
+        """Init HybridItemBuffer."""
         self._loop = asyncio.get_running_loop()
         self._data: asyncio.Future[ItemType] = self._loop.create_future()
 
     async def get(self) -> ItemType:
-        """Get the latest datagram from the double buffer as soon as available."""
+        """Get the latest item from the buffer as soon as available."""
         return await self._data
 
     def put_nowait(self, item: ItemType) -> None:
-        """Set data as the future result."""
+        """Set item as the future result."""
         try:
             self._data.set_result(item)
         # Try again with a new future object in case the latest item was not retrieved in time.

@@ -12,19 +12,67 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
-class EmDataDecoded:
+class EmHeader:
+    """EM protocol header data."""
     protocolID: int
     susyid: int
     device: str
     serial: int
     ip: str
     sw_version: str
-    # dict keys are OBIS IDs, e.g. "1:4:0"
-    measurements: dict[str, int]
 
 
-def decode_speedwire_em_datagram(p: bytes, addr: tuple[str, int]) -> EmDataDecoded:
+class EmReadings:
+    """Represents floating-point energy meter readings."""
+    # Header data
+    em_header: EmHeader | None = None
+    # Power import (positive) or export (negative) in Watts.
+    power = float("NaN")
+    # Energy import and eyport in kWh
+    energy_import = float("NaN")
+    energy_export = float("NaN")
+    # Frequency in Hz
+    frequency = float("NaN")
+    # Power import (positive) or export (negative) in Watts.
+    power_l1 = float("NaN")
+    power_l2 = float("NaN")
+    power_l3 = float("NaN")
+    # Current in Amps and Voltages in Volts.
+    current_l1 = float("NaN")
+    voltage_l1 = float("NaN")
+    current_l2 = float("NaN")
+    voltage_l2 = float("NaN")
+    current_l3 = float("NaN")
+    voltage_l3 = float("NaN")
+
+    def __init__(self, em_header: EmHeader, obis_measurements: dict[str, int]) -> None:
+        """Initialize EmReadings.
+
+        This sets the header data and translates raw measurement results
+        (identified by OBIS ID) into float readings.
+        """
+        try:
+            self.em_header = em_header
+            self.power = (obis_measurements["1:4:0"] - obis_measurements["2:4:0"]) / 10.0
+            self.energy_import = obis_measurements["1:8:0"] / 3600000.0
+            self.energy_export = obis_measurements["2:8:0"] / 3600000.0
+            self.frequency = obis_measurements["14:4:0"] / 1000.0
+            self.power_l1 = (obis_measurements["21:4:0"] - obis_measurements["22:4:0"]) / 10.0
+            self.power_l2 = (obis_measurements["41:4:0"] - obis_measurements["42:4:0"]) / 10.0
+            self.power_l3 = (obis_measurements["61:4:0"] - obis_measurements["62:4:0"]) / 10.0
+            self.current_l1 = obis_measurements["31:4:0"] / 1000.0
+            self.voltage_l1 = obis_measurements["32:4:0"] / 1000.0
+            self.current_l2 = obis_measurements["51:4:0"] / 1000.0
+            self.voltage_l2 = obis_measurements["52:4:0"] / 1000.0
+            self.current_l3 = obis_measurements["71:4:0"] / 1000.0
+            self.voltage_l3 = obis_measurements["72:4:0"] / 1000.0
+        except (TypeError, KeyError, ValueError):
+            pass
+
+
+def decode_speedwire_em_datagram(p: bytes, addr: tuple[str, int]) -> tuple[EmHeader, dict[str, int]]:
     """Decode a Speedwire-Packet
 
     Args:
@@ -36,21 +84,21 @@ def decode_speedwire_em_datagram(p: bytes, addr: tuple[str, int]) -> EmDataDecod
     Decode function based on pysmaplus@5e49754ecc73af0e5a5ff02b36afc7a164ce3684
     (https://github.com/littleyoda/pysma).
     
-    This has been stripped off debug information.
+    This has been modified and stripped off debug information.
     """
     sw = speedwireHeader.from_packed(p[0:18])
     if not sw.check6069():
         raise ValueError("Decoding speedwire packed failed. Wrong header!")
     sw6069 = speedwireHeader6069.from_packed(p[18:28])
-    data = EmDataDecoded(
+    header = EmHeader(
         protocolID=sw.protokoll,
         susyid=sw6069.src_susyid,
         device="SHM2/EM",
         serial=sw6069.src_serial,
         ip=addr[0] + ":" + str(addr[1]),
         sw_version="",
-        measurements={},
     )
+    obis_measurements: dict[str, int] = {}
     length = sw.smanet2_length + 16
     pos = 28
     while pos < min(length, conf.DATAGRAM_MAX_SIZE):
@@ -63,17 +111,17 @@ def decode_speedwire_em_datagram(p: bytes, addr: tuple[str, int]) -> EmDataDecod
             # 4 actucal / current => 8 Bytes
             # 8 counter / sum => 12 Bytes
             value = int.from_bytes(p[pos + 4 : pos + 4 + mtyp], byteorder="big")
-            data.measurements[obis] = value
+            obis_measurements[obis] = value
             pos += 4 + mtyp
         elif mchannel == 144 and mtyp == 0:
             value = f"{p[pos + 4]}.{p[pos + 5]}.{p[pos + 6]}.{chr(p[pos + 7])}"
-            data.sw_version = value
+            header.sw_version = value
             pos += 4 + 4
         else:
             # If we silently ignore this here, position has to be increased:
             # pos += 4 + 4
             raise ValueError("Decoding speedwire packed failed. Invalid data!")
-    return data
+    return header, obis_measurements
 
 
 class SmaEmProtocol(asyncio.DatagramProtocol):
@@ -107,15 +155,16 @@ class SmaEmProtocol(asyncio.DatagramProtocol):
         if receiver.data_received.done():
             return
         try:
-            data_decoded = decode_speedwire_em_datagram(data, addr)
+            header, obis_measurements = decode_speedwire_em_datagram(data, addr)
+            em_readings = EmReadings(header, obis_measurements)
         except (KeyError, ValueError, TypeError, UnicodeDecodeError) as e:
             logger.error("Error decoding SMA EM datagram: %s", e.args[0])
             return
-        if receiver.expected_device is not None and data_decoded.serial != receiver.expected_device:
+        if receiver.expected_device is not None and header.serial != receiver.expected_device:
             msg = "Received telegram from different device serial number. Wanted: %d.  Got: %d"
-            logger.debug(msg, receiver.expected_device, data_decoded.serial)
+            logger.debug(msg, receiver.expected_device, header.serial)
             return
-        receiver.data_received.set_result(data_decoded)
+        receiver.data_received.set_result(em_readings)
 
     def error_received(self, exc: Exception) -> None:
         """Callback called when a send or receive operation raises an OSError.

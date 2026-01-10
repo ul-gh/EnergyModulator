@@ -28,15 +28,12 @@ class EnergyModulatorServer:
     sdm630_emulator: Sdm630Emulator
 
     def __init__(self) -> None:
-        """Init Energy Modulator Server."""
+        """Init EnergyModulatorServer."""
         self.tasks: list[asyncio.Task[None]] = []
 
 
     async def run_forever(self) -> None:
-        """Run supervised UDP multicast endpoint and logger task.
-
-        Note: Log level is logging.INFO.
-        Normal loglevel is logging.WARNING i.e. screen output is OFF by default.
+        """Run all EnergyModulatorServer tasks.
         """
         self.loop = asyncio.get_running_loop()
         self.store = EnergyModulatorStore()

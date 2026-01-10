@@ -8,7 +8,7 @@ import socket
 
 from energy_modulator.store import EnergyModulatorStore
 from energy_modulator.conf.energy_modulator_config import SmaEmReceiverConfig as conf
-from energy_modulator.api.sma_em_protocol import SmaEmProtocol, EmDataDecoded
+from energy_modulator.api.sma_em_protocol import SmaEmProtocol, EmReadings
 
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ class SmaEmReceiver:
     """
 
     expected_device: int | None = conf.EXPECTED_DEVICE
-    data_received: asyncio.Future[EmDataDecoded]
+    data_received: asyncio.Future[EmReadings]
     _protocol: SmaEmProtocol
     _transport: asyncio.DatagramTransport | None = None
     _udp_multicast_endpoint_task: asyncio.Task[None]
@@ -62,7 +62,7 @@ class SmaEmReceiver:
         """Decode received datagrams and put values into app data store."""
         loop = asyncio.get_running_loop()
         while True:
-            await self.store.em_data.put(await self.data_received)
+            self.store.set_em_readings(await self.data_received)
             self.data_received = loop.create_future()
 
     async def _run_udp_multicast_endpoint(self) -> None:
