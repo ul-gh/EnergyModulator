@@ -31,7 +31,8 @@ class EnergyModulatorServer:
         """Init Energy Modulator Server."""
         self.tasks: list[asyncio.Task[None]] = []
 
-    async def run(self) -> None:
+
+    async def run_forever(self) -> None:
         """Run supervised UDP multicast endpoint and logger task.
 
         Note: Log level is logging.INFO.

@@ -38,7 +38,7 @@ server: EnergyModulatorServer
 main_thread: threading.Thread
 
 
-def mt_await(coro: Coroutine[Any, Any, object]) -> object:
+def wait_for(coro: Coroutine[Any, Any, object]) -> object:
     """Run coroutine on the server event loop and return the result.
     
     Intended for diagnostics and debugging use when running in a REPL (IPython).
@@ -51,7 +51,7 @@ def run_server() -> None:
     """Run app in foreground (also as a system service)."""
     global server
     with EnergyModulatorServer() as server:
-        asyncio.run(server.run())
+        asyncio.run(server.run_forever())
 
 
 def start() -> None:
