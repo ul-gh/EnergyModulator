@@ -75,14 +75,14 @@ class Sdm630Emulator:
             ignore_missing_devices=True,
         )
         # Hook data updating call of datastore to update this server context
-        store.add_em_data_hook(self.set_power)
+        store.add_em_data_hook(self.set_state)
 
     async def run_forever(self) -> None:
         """Start SDM630 emulator server task."""
         await self.server.serve_forever()
 
-    def set_power(self, readings: EmReadings) -> None:
-        """Set emulated total active power by setting all phases to a third of the total power."""
+    def set_state(self, readings: EmReadings) -> None:
+        """Set state of the emulated device."""
         reg_vals_l1_l2_l3: list[int] = self._float_to_big_endian_reg_vals(
             readings.power_l1,
             readings.power_l2,
