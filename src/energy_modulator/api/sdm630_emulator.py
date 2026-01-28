@@ -22,7 +22,7 @@ from pymodbus.framer import FramerType
 from pymodbus.server import ModbusSerialServer
 
 from energy_modulator.conf.energy_modulator_config import Sdm630EmulatorConfig as conf  # noqa: N813
-from energy_modulator.store import EnergyModulatorStore, EmReadings
+from energy_modulator.store import EnergyModulatorStore
 
 REG_OFFSET_L1_POWER: int = 12
 # REG_OFFSET_L2_POWER: int = 14
@@ -37,6 +37,7 @@ class Sdm630Emulator:
 
     def __init__(self, store: EnergyModulatorStore) -> None:
         """Initialize Sdm630Emulator from application config."""
+        self._store = store
         # Modbus indexing scheme customarily uses zero-based offset values,
         # but register addresses per Modbus definition start at offset + 1.
         # The data structure initialized here assumes one-based register offset values.
@@ -75,18 +76,19 @@ class Sdm630Emulator:
             ignore_missing_devices=True,
         )
         # Hook data updating call of datastore to update this server context
-        store.add_em_data_hook(self.set_state)
+        store.add_update_coroutine(self.set_state(store))
 
     async def run_forever(self) -> None:
         """Start SDM630 emulator server task."""
         await self.server.serve_forever()
 
-    def set_state(self, readings: EmReadings) -> None:
+    async def set_state(self, store: EnergyModulatorStore) -> None:
         """Set state of the emulated device."""
+        readings = await store.em_readings.get()
         reg_vals_l1_l2_l3: list[int] = self._float_to_big_endian_reg_vals(
-            readings.power_l1,
-            readings.power_l2,
-            readings.power_l3,
+            readings.power_l1 + store.p_offset,
+            readings.power_l2 + store.p_offset,
+            readings.power_l3 + store.p_offset,
         )
         # Function code 0x04 (read input register) is mapped to the
         # respective input register setter functions by pymodbus.

@@ -12,6 +12,7 @@ from types import TracebackType
 # from energy_modulator.conf.energy_modulator_config import EnergyModulatorServerConfig as conf
 from energy_modulator.store import EnergyModulatorStore
 from energy_modulator.api.local_logger import LocalLogger
+from energy_modulator.api.mqtt_api import MqttApi
 from energy_modulator.api.sdm630_emulator import Sdm630Emulator
 from energy_modulator.api.sma_em_receiver import SmaEmReceiver
 
@@ -26,27 +27,29 @@ class EnergyModulatorServer:
     local_logger: LocalLogger
     sma_em_receiver: SmaEmReceiver
     sdm630_emulator: Sdm630Emulator
+    mqtt_api: MqttApi
 
     def __init__(self) -> None:
         """Init EnergyModulatorServer."""
         self.tasks: list[asyncio.Task[None]] = []
 
-
     async def run_forever(self) -> None:
-        """Run all EnergyModulatorServer tasks.
-        """
+        """Run all EnergyModulatorServer tasks."""
         self.loop = asyncio.get_running_loop()
         self.store = EnergyModulatorStore()
         self.local_logger = LocalLogger(self.store)
         self.sma_em_receiver = SmaEmReceiver(self.store)
         self.sdm630_emulator = Sdm630Emulator(self.store)
+        self.mqtt_api = MqttApi(self.store)
         async with asyncio.TaskGroup() as tg:
             # UDP Multicast endpoint for SMA Energy Metering Protocol
             self.tasks.append(tg.create_task(self.sma_em_receiver.run_forever(), name="sma_em_receiver"))
             # Local logging task
             self.tasks.append(tg.create_task(self.local_logger.run_forever(), name="local_logger"))
             # SDM 630 energy meter emulator
-            self.tasks.append(tg.create_task(self.sdm630_emulator.run_forever(), name="sdm630_emualtor"))
+            self.tasks.append(tg.create_task(self.sdm630_emulator.run_forever(), name="sdm630_emulator"))
+            # MQTT setpoint controller and telemetry
+            self.tasks.append(tg.create_task(self.mqtt_api.run_forever(), name="mqtt_api"))
 
     def stop(self) -> None:
         """Cancel all EnergyModulatorServer tasks."""
