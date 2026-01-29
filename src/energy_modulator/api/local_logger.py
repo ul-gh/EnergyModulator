@@ -33,12 +33,16 @@ class LocalLogger:
         console_handler.setFormatter(formatter)
         self.logger.addHandler(console_handler)
 
-
     async def run_forever(self) -> None:
         """(Supposedly) forever running co-routine for power output logger."""
         # CSV header: Component, Date, Time, Measurement, Unit, Channel, Channel, Channel, Channel
-        msg = "Active Power, W, Total, L1, L2, L3, %5.0f, %5.0f, %5.0f, %5.0f"
+        msg_p = "Active Power, W, Total, L1, L2, L3, %5.0f, %5.0f, %5.0f, %5.0f"
+        msg_offset = "Power Offset Setpoint, W, %5.0f"
         while True:
             await asyncio.sleep(conf.LOG_INTERVAL)
-            readings = await self.store.em_readings.get()
-            self.logger.debug(msg, readings.power, readings.power_l1, readings.power_l2, readings.power_l3)
+            power = self.store.em_readings.power
+            power_l1 = self.store.em_readings.power_l1
+            power_l2 = self.store.em_readings.power_l2
+            power_l3 = self.store.em_readings.power_l3
+            self.logger.debug(msg_p, power, power_l1, power_l2, power_l3)
+            self.logger.debug(msg_offset, self.store.p_offset)

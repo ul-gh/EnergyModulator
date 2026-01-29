@@ -1,14 +1,12 @@
 """Protocol definition for async udp multicast endpoint and decoder for SMA EM datagrams."""
+
 import asyncio
 import logging
 
 from dataclasses import dataclass
 from pysmaplus.definitions_speedwire import speedwireHeader, speedwireHeader6069
 from energy_modulator.conf.energy_modulator_config import SmaEmReceiverConfig as conf
-
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from energy_modulator.api.sma_em_receiver import SmaEmReceiver
+from energy_modulator.utils.async_buffers_queues import HybridItemBuffer
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +14,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class EmHeader:
     """EM protocol header data."""
+
     protocolID: int
     susyid: int
     device: str
@@ -26,6 +25,7 @@ class EmHeader:
 
 class EmReadings:
     """Represents floating-point energy meter readings."""
+
     # Header data
     em_header: EmHeader | None = None
     # Power import (positive) or export (negative) in Watts.
@@ -83,7 +83,7 @@ def decode_speedwire_em_datagram(p: bytes, addr: tuple[str, int]) -> tuple[EmHea
 
     Decode function based on pysmaplus@5e49754ecc73af0e5a5ff02b36afc7a164ce3684
     (https://github.com/littleyoda/pysma).
-    
+
     This has been modified and stripped off debug information.
     """
     sw = speedwireHeader.from_packed(p[0:18])
@@ -131,12 +131,12 @@ class SmaEmProtocol(asyncio.DatagramProtocol):
     _transport_udp: asyncio.DatagramTransport
 
     def __init__(
-            self,
-            receiver: "SmaEmReceiver",
-            connection_lost: asyncio.Future[None],
-        ) -> None:
+        self,
+        data_received: HybridItemBuffer[EmReadings],
+        connection_lost: asyncio.Future[None],
+    ) -> None:
         """Initialize SmaEmProtocol."""
-        self._receiver = receiver
+        self._data_received = data_received
         self._connection_lost = connection_lost
 
     def connection_made(self, transport: asyncio.DatagramTransport) -> None:
@@ -151,20 +151,17 @@ class SmaEmProtocol(asyncio.DatagramProtocol):
 
     def datagram_received(self, data: bytes, addr: tuple[str, int]) -> None:
         """Callback called when a UDP datagram arrives."""
-        receiver = self._receiver
-        if receiver.data_received.done():
-            return
         try:
             header, obis_measurements = decode_speedwire_em_datagram(data, addr)
             em_readings = EmReadings(header, obis_measurements)
         except (KeyError, ValueError, TypeError, UnicodeDecodeError) as e:
             logger.error("Error decoding SMA EM datagram: %s", e.args[0])
             return
-        if receiver.expected_device is not None and header.serial != receiver.expected_device:
+        if conf.EXPECTED_DEVICE is not None and header.serial != conf.EXPECTED_DEVICE:
             msg = "Received telegram from different device serial number. Wanted: %d.  Got: %d"
-            logger.debug(msg, receiver.expected_device, header.serial)
+            logger.debug(msg, conf.EXPECTED_DEVICE, header.serial)
             return
-        receiver.data_received.set_result(em_readings)
+        self._data_received.put_nowait(em_readings)
 
     def error_received(self, exc: Exception) -> None:
         """Callback called when a send or receive operation raises an OSError.

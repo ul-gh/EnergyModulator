@@ -75,21 +75,23 @@ class Sdm630Emulator:
             # Deye inverters send some spurious requests which we want to ignore
             ignore_missing_devices=True,
         )
-        # Hook data updating call of datastore to update this server context
-        store.add_update_coroutine(self.set_state(store))
+        self._store.add_update_cb(self.update_state)
 
     async def run_forever(self) -> None:
         """Start SDM630 emulator server task."""
         await self.server.serve_forever()
 
-    async def set_state(self, store: EnergyModulatorStore) -> None:
-        """Set state of the emulated device."""
-        readings = await store.em_readings.get()
-        reg_vals_l1_l2_l3: list[int] = self._float_to_big_endian_reg_vals(
-            readings.power_l1 + store.p_offset,
-            readings.power_l2 + store.p_offset,
-            readings.power_l3 + store.p_offset,
-        )
+    def update_state(self, store: EnergyModulatorStore) -> None:
+        """Update emulated state from application state store."""
+        p_offset_thirds = store.p_offset / 3.0
+        p_l1 = store.em_readings.power_l1 + p_offset_thirds
+        p_l2 = store.em_readings.power_l2 + p_offset_thirds
+        p_l3 = store.em_readings.power_l3 + p_offset_thirds
+        self.set_power(p_l1, p_l2, p_l3)
+
+    def set_power(self, power_l1: float, power_l2: float, power_l3: float) -> None:
+        """Set power readings of the emulated device."""
+        reg_vals_l1_l2_l3: list[int] = self._float_to_big_endian_reg_vals(power_l1, power_l2, power_l3)
         # Function code 0x04 (read input register) is mapped to the
         # respective input register setter functions by pymodbus.
         function_code: int = 0x04

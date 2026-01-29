@@ -2,6 +2,7 @@
 
 2025-12-23 Ulrich Lukas
 """
+
 import asyncio
 import logging
 import socket
@@ -9,6 +10,7 @@ import socket
 from energy_modulator.store import EnergyModulatorStore
 from energy_modulator.conf.energy_modulator_config import SmaEmReceiverConfig as conf
 from energy_modulator.api.sma_em_protocol import SmaEmProtocol, EmReadings
+from energy_modulator.utils.async_buffers_queues import HybridItemBuffer
 
 
 logger = logging.getLogger(__name__)
@@ -23,24 +25,18 @@ class SmaEmReceiver:
     Read-out values are obtained by callling the respective getter functions.
     """
 
-    expected_device: int | None = conf.EXPECTED_DEVICE
-    data_received: asyncio.Future[EmReadings]
+    data_received: HybridItemBuffer[EmReadings]
     _protocol: SmaEmProtocol
     _transport: asyncio.DatagramTransport | None = None
     _udp_multicast_endpoint_task: asyncio.Task[None]
     _data_processing_task: asyncio.Task[None]
 
-
     def __init__(self, store: EnergyModulatorStore) -> None:
         """Initialize SmaEmReceiver."""
         self.store = store
 
-
     async def run_forever(self) -> None:
-        """Run UDP multicast endpoint task and data processing task.
-        """
-        # Result set by protocol handler for SmaEmProtocol. Awaited in _run_data_processing.
-        self.data_received = asyncio.Future()
+        """Run UDP multicast endpoint task and data processing task."""
         while True:
             async with asyncio.TaskGroup() as tg:
                 logger.info("Launching SmaEmReceiver tasks...")
@@ -48,10 +44,8 @@ class SmaEmReceiver:
                     self._run_udp_multicast_endpoint(), name="udp_multicast_endpoint_task"
                 )
                 # Must be started after
-                self._data_processing_task = tg.create_task(
-                    self._run_data_processing(), name="data_processing_task"
-                )
-    
+                self._data_processing_task = tg.create_task(self._run_data_processing(), name="data_processing_task")
+
     def stop(self) -> None:
         """Cancel all SmaEmReceiver tasks."""
         logger.info("SmaEmReceiver.stop() called..")
@@ -60,10 +54,9 @@ class SmaEmReceiver:
 
     async def _run_data_processing(self) -> None:
         """Decode received datagrams and put values into app data store."""
-        loop = asyncio.get_running_loop()
         while True:
-            self.store.set_em_readings(await self.data_received)
-            self.data_received = loop.create_future()
+            em_readings = await self.data_received.get()
+            await self.store.set_em_readings(em_readings)
 
     async def _run_udp_multicast_endpoint(self) -> None:
         """Receive incoming UDP multicast datagrams.
@@ -78,14 +71,13 @@ class SmaEmReceiver:
         connection_lost = loop.create_future()
         sock = self._create_udp_multicast_socket()
         self._transport, self._protocol = await loop.create_datagram_endpoint(
-            lambda: SmaEmProtocol(self, connection_lost),
+            lambda: SmaEmProtocol(self.data_received, connection_lost),
             sock=sock,
         )
         try:
             await connection_lost
         finally:
             self._transport.close()
-
 
     def _create_udp_multicast_socket(self) -> socket.socket:
         # This can be socket.AF_INET (IPv4) or socket.AF_INET6 (IPv6).
@@ -96,14 +88,15 @@ class SmaEmReceiver:
         # Create socket and configure with multicast group membership request.
         sock = socket.socket(address_family, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-        ip_mreq = (socket.inet_pton(address_family, conf.MULTICAST_GROUP)
-                   + socket.inet_pton(address_family, conf.MULTICAST_BIND_ADDR))
-        if address_family == socket.AF_INET: # IPv4
+        # See: https://stackoverflow.com/questions/14388706/how-do-so-reuseaddr-and-so-reuseport-differ?rq=1
+        # sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        ip_mreq = socket.inet_pton(address_family, conf.MULTICAST_GROUP) + socket.inet_pton(
+            address_family, conf.MULTICAST_BIND_ADDR
+        )
+        if address_family == socket.AF_INET:  # IPv4
             sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, ip_mreq)
         else:
             sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_JOIN_GROUP, ip_mreq)
         # Bind the socket to the interface address and port.
         sock.bind((conf.MULTICAST_BIND_ADDR, conf.MULTICAST_PORT))
         return sock
-
