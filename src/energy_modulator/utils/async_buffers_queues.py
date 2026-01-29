@@ -4,12 +4,12 @@ import asyncio
 
 
 class HybridItemBuffer[ItemType]:
-    """Buffering of sync input for async output.
+    """Buffering of sync input for async output, a single-item queue.
 
     This stores the latest value item, overwriting any previous input.
     Use where one task produces value items and one or more tasks consume these.
 
-    The latest item can be repeatedly retrieved.
+    Using get_nopop(), the latest item can be repeatedly retrieved.
     """
 
     def __init__(self) -> None:
@@ -18,7 +18,13 @@ class HybridItemBuffer[ItemType]:
         self._data: asyncio.Future[ItemType] = self._loop.create_future()
 
     async def get(self) -> ItemType:
-        """Get the latest item from the buffer as soon as available."""
+        """Get the latest item and create a new future object."""
+        data = await self._data
+        self._data = self._loop.create_future()
+        return data
+
+    async def get_nopop(self) -> ItemType:
+        """Get the latest item without creating a new future."""
         return await self._data
 
     def put_nowait(self, item: ItemType) -> None:
