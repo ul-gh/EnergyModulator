@@ -6,7 +6,7 @@ import logging
 from dataclasses import dataclass
 from pysmaplus.definitions_speedwire import speedwireHeader, speedwireHeader6069
 from energy_modulator.conf.energy_modulator_config import SmaEmReceiverConfig as conf
-from energy_modulator.utils.async_buffers_queues import SingleItemQueue
+from energy_modulator.utils import SingleItemQueue
 
 logger = logging.getLogger(__name__)
 

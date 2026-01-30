@@ -1,11 +1,11 @@
 """Power output logging for SmaEmReceiver."""
 
-import asyncio
 import logging
 import sys
 
 from energy_modulator.conf.energy_modulator_config import LocalLoggerConfig as conf
 from energy_modulator.store import EnergyModulatorStore
+from energy_modulator.utils import async_fixed_time_intervals
 
 
 class LocalLogger:
@@ -38,8 +38,7 @@ class LocalLogger:
         # CSV header: Component, Date, Time, Measurement, Unit, Channel, Channel, Channel, Channel
         msg_p = "Active Power, W, Total, L1, L2, L3, %5.0f, %5.0f, %5.0f, %5.0f"
         msg_offset = "Power Offset Setpoint, W, %5.0f"
-        while True:
-            await asyncio.sleep(conf.LOG_INTERVAL)
+        async for _ in async_fixed_time_intervals(conf.LOG_INTERVAL):
             power = self.store.em_readings.power
             power_l1 = self.store.em_readings.power_l1
             power_l2 = self.store.em_readings.power_l2
