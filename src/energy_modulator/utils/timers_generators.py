@@ -3,8 +3,6 @@ import time
 from collections.abc import AsyncGenerator, Callable, Generator
 from itertools import count
 
-asyncio.timeout_at
-
 
 async def async_fixed_time_intervals(
     period: float,
