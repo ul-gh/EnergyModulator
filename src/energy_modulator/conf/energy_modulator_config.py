@@ -4,7 +4,6 @@
 """
 # ruff: noqa: ERA001, S104, S108
 from dataclasses import dataclass
-
 from importlib.metadata import version
 
 
@@ -16,6 +15,7 @@ class EnergyModulatorServerConfig:
 @dataclass
 class LocalLoggerConfig:
     """Settings for local logging."""
+
     # Log output time interval in seconds.
     # FIXME: Change value for production!
     LOG_INTERVAL: float = 0.1

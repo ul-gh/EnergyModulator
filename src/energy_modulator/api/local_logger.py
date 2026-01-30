@@ -26,8 +26,7 @@ class LocalLogger:
         # Application data store
         self.store = store
         # Logger configuration
-        root_logger_level = logging.getLogger().level
-        self.logger = logging.Logger(__name__, level=root_logger_level)
+        self.logger = logging.getLogger(__name__)
         console_handler = logging.StreamHandler(sys.stdout)
         formatter = logging.Formatter(fmt="%(asctime)s, %(message)s", datefmt="%Y-%m-%d, %H:%M:%S")
         console_handler.setFormatter(formatter)

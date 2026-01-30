@@ -1,7 +1,8 @@
 """Energy Modulator MQTT API for remote control and telemetry."""
 
-import aiomqtt
 import logging
+
+import aiomqtt
 
 from energy_modulator.conf.energy_modulator_config import MqttConfig as conf
 from energy_modulator.store import EnergyModulatorStore
@@ -13,6 +14,8 @@ MQTT_TIMEOUT: float = 5.0
 
 
 class MqttApi:
+    """Energy Modulator MQTT API for remote control and telemetry."""
+
     def __init__(self, store: EnergyModulatorStore) -> None:
         self._store = store
         self._client = aiomqtt.Client(
@@ -23,6 +26,7 @@ class MqttApi:
         )
 
     async def run_forever(self) -> None:
+        """Run MqttApi task."""
         await self._client.subscribe(conf.TOPIC_POWER_CONTROL)
         async for msg in self._client.messages:
             p_offset = float(str(msg.payload))
