@@ -1,6 +1,7 @@
 """State storage for energy_modulator."""
 
-from typing import Callable, Self
+from collections.abc import Callable
+from typing import Self
 
 from energy_modulator.api.sma_em_protocol import EmReadings
 
@@ -12,23 +13,24 @@ class EnergyModulatorStore:
     """
 
     p_offset: float = 0.0
-    em_readings: EmReadings
+    em_readings = EmReadings()
 
     def __init__(self) -> None:
         self._update_callbacks: list[Callable[[Self], None]] = []
 
     async def set_p_offset(self, p_offset: float) -> None:
+        """Set power offset setpoint."""
         self.p_offset = p_offset
 
     async def set_em_readings(self, em_readings: EmReadings) -> None:
-        """Input EM data readings. This triggers necessary actions."""
+        """Input EM data readings. This triggers the data update callback actions."""
         self.em_readings = em_readings
-        self._run_hooks()
+        self._run_update_cbs()
 
     def add_update_cb(self, cb: Callable[[Self], None]) -> None:
         """Add co-routine awaited for on data updates."""
         self._update_callbacks.append(cb)
 
-    def _run_hooks(self) -> None:
+    def _run_update_cbs(self) -> None:
         for cb in self._update_callbacks:
             cb(self)

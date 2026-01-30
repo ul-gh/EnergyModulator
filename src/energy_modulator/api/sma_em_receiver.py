@@ -7,11 +7,10 @@ import asyncio
 import logging
 import socket
 
-from energy_modulator.store import EnergyModulatorStore
+from energy_modulator.api.sma_em_protocol import EmReadings, SmaEmProtocol
 from energy_modulator.conf.energy_modulator_config import SmaEmReceiverConfig as conf
-from energy_modulator.api.sma_em_protocol import SmaEmProtocol, EmReadings
+from energy_modulator.store import EnergyModulatorStore
 from energy_modulator.utils.async_buffers_queues import SingleItemQueue
-
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +28,7 @@ class SmaEmReceiver:
     _protocol: SmaEmProtocol
     _transport: asyncio.DatagramTransport | None = None
     _udp_multicast_endpoint_task: asyncio.Task[None]
-    _data_processing_task: asyncio.Task[None]
+    _state_updater_task: asyncio.Task[None]
 
     def __init__(self, store: EnergyModulatorStore) -> None:
         """Initialize SmaEmReceiver."""
@@ -37,23 +36,29 @@ class SmaEmReceiver:
 
     async def run_forever(self) -> None:
         """Run UDP multicast endpoint task and data processing task."""
+        self.data_received = SingleItemQueue()
         while True:
             async with asyncio.TaskGroup() as tg:
                 logger.info("Launching SmaEmReceiver tasks...")
+                # Produces EmReadings and puts in self.data_received.
                 self._udp_multicast_endpoint_task = tg.create_task(
-                    self._run_udp_multicast_endpoint(), name="udp_multicast_endpoint_task"
+                    self._run_udp_multicast_endpoint(),
+                    name="udp_multicast_endpoint_task",
                 )
-                # Must be started after
-                self._data_processing_task = tg.create_task(self._run_data_processing(), name="data_processing_task")
+                # Consumes EmReadings from self.data_received.
+                self._state_updater_task = tg.create_task(
+                    self._run_state_updater(),
+                    name="state_updater_task",
+                )
 
     def stop(self) -> None:
         """Cancel all SmaEmReceiver tasks."""
         logger.info("SmaEmReceiver.stop() called..")
-        self._data_processing_task.cancel()
+        self._state_updater_task.cancel()
         self._udp_multicast_endpoint_task.cancel()
 
-    async def _run_data_processing(self) -> None:
-        """Decode received datagrams and put values into app data store."""
+    async def _run_state_updater(self) -> None:
+        """Update application state data store."""
         while True:
             em_readings = await self.data_received.get()
             await self.store.set_em_readings(em_readings)
@@ -89,9 +94,9 @@ class SmaEmReceiver:
         sock = socket.socket(address_family, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         # See: https://stackoverflow.com/questions/14388706/how-do-so-reuseaddr-and-so-reuseport-differ?rq=1
-        # sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        # sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)  # noqa: ERA001
         ip_mreq = socket.inet_pton(address_family, conf.MULTICAST_GROUP) + socket.inet_pton(
-            address_family, conf.MULTICAST_BIND_ADDR
+            address_family, conf.MULTICAST_BIND_ADDR,
         )
         if address_family == socket.AF_INET:  # IPv4
             sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, ip_mreq)

@@ -48,14 +48,17 @@ class EmReadings:
     current_l3 = float("NaN")
     voltage_l3 = float("NaN")
 
-    def __init__(self, em_header: EmHeader, obis_measurements: dict[str, int]) -> None:
-        """Initialize EmReadings.
+
+    def update(self, em_header: EmHeader, obis_measurements: dict[str, int]) -> None:
+        """Update EmReadings with decoded values from UDP receiver.
 
         This sets the header data and translates raw measurement results
         (identified by OBIS ID) into float readings.
+
+        Errors are silently discarded.
         """
+        self.em_header = em_header
         try:
-            self.em_header = em_header
             self.power = (obis_measurements["1:4:0"] - obis_measurements["2:4:0"]) / 10.0
             self.energy_import = obis_measurements["1:8:0"] / 3600000.0
             self.energy_export = obis_measurements["2:8:0"] / 3600000.0
@@ -143,6 +146,7 @@ class SmaEmProtocol(asyncio.DatagramProtocol):
         """Initialize SmaEmProtocol."""
         self._data_received = data_received
         self._connection_lost = connection_lost
+        self._em_readings = EmReadings()
 
     def connection_made(self, transport: asyncio.DatagramTransport) -> None:
         """Callback called when a connection is made.
@@ -158,15 +162,15 @@ class SmaEmProtocol(asyncio.DatagramProtocol):
         """Callback called when a UDP datagram arrives."""
         try:
             header, obis_measurements = decode_speedwire_em_datagram(data, addr)
-            em_readings = EmReadings(header, obis_measurements)
+            self._em_readings.update(header, obis_measurements)
         except (KeyError, ValueError, TypeError, UnicodeDecodeError) as e:
-            logger.exception("Error decoding SMA EM datagram: %s", e.args[0])
+            logger.error("Error decoding SMA EM datagram: %s", e.args[0])  # noqa: TRY400
             return
         if conf.EXPECTED_DEVICE is not None and header.serial != conf.EXPECTED_DEVICE:
             msg = "Received telegram from different device serial number. Wanted: %d.  Got: %d"
             logger.debug(msg, conf.EXPECTED_DEVICE, header.serial)
             return
-        self._data_received.put_nowait(em_readings)
+        self._data_received.put_nowait(self._em_readings)
 
     def error_received(self, exc: Exception) -> None:
         """Callback called when a send or receive operation raises an OSError.
