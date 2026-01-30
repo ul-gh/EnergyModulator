@@ -10,7 +10,7 @@ import socket
 from energy_modulator.store import EnergyModulatorStore
 from energy_modulator.conf.energy_modulator_config import SmaEmReceiverConfig as conf
 from energy_modulator.api.sma_em_protocol import SmaEmProtocol, EmReadings
-from energy_modulator.utils.async_buffers_queues import HybridItemBuffer
+from energy_modulator.utils.async_buffers_queues import SingleItemQueue
 
 
 logger = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ class SmaEmReceiver:
     Read-out values are obtained by callling the respective getter functions.
     """
 
-    data_received: HybridItemBuffer[EmReadings]
+    data_received: SingleItemQueue[EmReadings]
     _protocol: SmaEmProtocol
     _transport: asyncio.DatagramTransport | None = None
     _udp_multicast_endpoint_task: asyncio.Task[None]

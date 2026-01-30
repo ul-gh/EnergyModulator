@@ -36,19 +36,20 @@ class EnergyModulatorServer:
     async def run_forever(self) -> None:
         """Run all EnergyModulatorServer tasks."""
         self.loop = asyncio.get_running_loop()
+        # Application state storage object.
         self.store = EnergyModulatorStore()
+        # Fixed time-cycle CSV logger.
         self.local_logger = LocalLogger(self.store)
+        # UDP multicast endpoint receiving datagrams from energy meter using SMA EM protocol.
         self.sma_em_receiver = SmaEmReceiver(self.store)
+        # Eastron SDM630 Modbus RTU energy meter emulator.
         self.sdm630_emulator = Sdm630Emulator(self.store)
+        # Control interface API over MQTT.
         self.mqtt_api = MqttApi(self.store)
         async with asyncio.TaskGroup() as tg:
-            # UDP Multicast endpoint for SMA Energy Metering Protocol
             self.tasks.append(tg.create_task(self.sma_em_receiver.run_forever(), name="sma_em_receiver"))
-            # Local logging task
             self.tasks.append(tg.create_task(self.local_logger.run_forever(), name="local_logger"))
-            # SDM 630 energy meter emulator
             self.tasks.append(tg.create_task(self.sdm630_emulator.run_forever(), name="sdm630_emulator"))
-            # MQTT setpoint controller and telemetry
             self.tasks.append(tg.create_task(self.mqtt_api.run_forever(), name="mqtt_api"))
 
     def stop(self) -> None:

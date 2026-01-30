@@ -15,7 +15,6 @@ class EnergyModulatorStore:
     em_readings: EmReadings
 
     def __init__(self) -> None:
-        super().__init__()
         self._update_callbacks: list[Callable[[Self], None]] = []
 
     async def set_p_offset(self, p_offset: float) -> None:

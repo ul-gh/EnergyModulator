@@ -3,7 +3,7 @@
 import asyncio
 
 
-class HybridItemBuffer[ItemType]:
+class SingleItemQueue[ItemType]:
     """Buffering of sync input for async output, a single-item queue.
 
     This stores the latest value item, overwriting any previous input.
@@ -13,7 +13,7 @@ class HybridItemBuffer[ItemType]:
     """
 
     def __init__(self) -> None:
-        """Init HybridItemBuffer."""
+        """Init SingleItemQueue."""
         self._loop = asyncio.get_running_loop()
         self._data: asyncio.Future[ItemType] = self._loop.create_future()
 

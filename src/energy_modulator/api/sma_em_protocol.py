@@ -6,7 +6,7 @@ import logging
 from dataclasses import dataclass
 from pysmaplus.definitions_speedwire import speedwireHeader, speedwireHeader6069
 from energy_modulator.conf.energy_modulator_config import SmaEmReceiverConfig as conf
-from energy_modulator.utils.async_buffers_queues import HybridItemBuffer
+from energy_modulator.utils.async_buffers_queues import SingleItemQueue
 
 logger = logging.getLogger(__name__)
 
@@ -132,7 +132,7 @@ class SmaEmProtocol(asyncio.DatagramProtocol):
 
     def __init__(
         self,
-        data_received: HybridItemBuffer[EmReadings],
+        data_received: SingleItemQueue[EmReadings],
         connection_lost: asyncio.Future[None],
     ) -> None:
         """Initialize SmaEmProtocol."""

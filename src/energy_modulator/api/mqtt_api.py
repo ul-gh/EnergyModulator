@@ -25,5 +25,5 @@ class MqttApi:
     async def run_forever(self) -> None:
         await self._client.subscribe(conf.TOPIC_POWER_CONTROL)
         async for msg in self._client.messages:
-            p_offset = float(msg.payload)
+            p_offset = float(str(msg.payload))
             await self._store.set_p_offset(p_offset)

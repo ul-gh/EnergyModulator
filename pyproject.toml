@@ -21,6 +21,10 @@ requires-python = ">=3.12"
 [project.scripts]
 energy_modulator = "energy_modulator.main:main"
 
+[project.urls]
+Homepage = "https://github.com/ul-gh/EnergyModulator"
+Repository = "https://github.com/ul-gh/EnergyModulator.git"
+
 [build-system]
 requires = ["setuptools", "setuptools-git-versioning", "wheel"]
 build-backend = "setuptools.build_meta"
