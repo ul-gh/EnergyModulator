@@ -3,7 +3,7 @@ name = "energy_modulator"
 description = "Energy Metering Protocol Gateway for Grid-Coupled Inverter Power Control."
 readme = "README.md"
 authors = [
-    {"name" = "Ulrich Lukas", "email" = "opensource@lukas-elektronik.de"},
+    { "name" = "Ulrich Lukas", "email" = "opensource@lukas-elektronik.de" },
 ]
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
@@ -46,7 +46,7 @@ line-length = 120
 # Exclude specific directories
 exclude = [
     "include",
-    "venv", 
+    "venv",
     ".eggs",
     ".git",
     ".venv",
@@ -55,6 +55,7 @@ exclude = [
 ]
 
 [tool.ruff.lint]
+select = ["ALL"]
 ignore = [
     #"E501",  # line too long
 ]

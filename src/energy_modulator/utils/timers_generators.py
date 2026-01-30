@@ -20,14 +20,16 @@ async def async_fixed_time_intervals(
     without accumulating small differences of run time of
     individual iterations.
 
-    Arguments:
+    Parameters
+    ----------
         period: Period (cycle) time in seconds.
         n_repeats: Number of repeats. If left out or None, do infinite repeats.
         resume_at: Resume a previous run starting at this cycle number.
             This reduces the number of cycles for the call.
         break_last_cycle: When True, do not wait for end of cycle period after last run.
 
-    Yields:
+    Yields
+    ------
         - Index number of the current repeat, starting at zero
         - Initial timestamp of the first run.
     """
@@ -192,7 +194,8 @@ def repeat_periodic_while(
     without accumulating small differences of run time of
     individual iterations.
 
-    Arguments:
+    Parameters
+    ----------
         fn: The function or method to be repeatedly called.
             Signature: fn(run_no: int) -> bool
             When fn returns False, further repeats are aborted.

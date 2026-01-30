@@ -52,7 +52,7 @@ class HybridFifoQueue[ItemType](asyncio.Queue[ItemType]):
         super().__init__(maxsize)
 
     def put_nowait(self, item: ItemType) -> None:
-        """Callback called when a UDP datagram arrives."""
+        """Callback called when a UDP datagram arrives."""  # noqa: D401
         try:
             super().put_nowait(item)
         # If queue is full, we first discard the oldest entry and try again.
@@ -62,7 +62,7 @@ class HybridFifoQueue[ItemType](asyncio.Queue[ItemType]):
                 super().put_nowait(item)
             # Queue could have been drained by reading in between.
             except asyncio.QueueEmpty:
-                try:
+                try:  # noqa: SIM105
                     super().put_nowait(item)
                 # If above fails again (new data arrived in between emptying the
                 # queue and putting in the newest value), discard more data.
