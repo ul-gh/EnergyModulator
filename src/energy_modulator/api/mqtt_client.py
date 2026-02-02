@@ -27,29 +27,12 @@ class MqttClient:
     async def run_forever(self) -> None:
         """Run MqttApi task."""
         try:
-            await self.run_client_tasks()
+            await self._run_client_tasks()
         except aiomqtt.MqttError:
             logger.error("Connection lost. Reconnecting...")
             await asyncio.sleep(conf.RECONNECT_TIMEOUT)
 
-
-    async def run_telemetry_task(self, client: aiomqtt.Client) -> None:
-        """Push telemetry data periodically."""
-        async for _ in async_fixed_time_intervals(conf.TELEMETRY_INTERVAL):
-            payload = self._store.em_readings.as_json()
-            await client.publish(conf.TOPIC_MEASUREMENTS, payload)
-
-
-    async def run_endpoint_task(self, client: aiomqtt.Client) -> None:
-        """Subscribe to API control topic channel and process control messages."""
-        _ = await client.subscribe(conf.TOPIC_POWER_CONTROL)
-        p_offset = 0.0
-        async for msg in client.messages:
-            with contextlib.suppress(ValueError):
-                p_offset = float(msg.payload)
-            await self._store.set_p_offset(p_offset)
-
-    async def run_client_tasks(self) -> None:
+    async def _run_client_tasks(self) -> None:
         """Run MQTT control API endpoint task and MQTT telemetry task."""
         async with aiomqtt.Client(
             conf.BROKER,
@@ -59,11 +42,27 @@ class MqttClient:
         ) as client:
             async with asyncio.TaskGroup() as tg:
                 self._endpoint_task = tg.create_task(
-                    self.run_endpoint_task(client),
+                    self._run_endpoint_task(client),
                     name="MQTT control endpoint task",
                 )
                 self._telemetry_task = tg.create_task(
-                    self.run_telemetry_task(client),
+                    self._run_telemetry_task(client),
                     name="MQTT telemetry task",
                 )
+
+    async def _run_endpoint_task(self, client: aiomqtt.Client) -> None:
+        """Subscribe to API control topic channel and process control messages."""
+        _ = await client.subscribe(conf.TOPIC_POWER_CONTROL)
+        p_offset = 0.0
+        async for msg in client.messages:
+            with contextlib.suppress(ValueError):
+                p_offset = float(msg.payload)
+            await self._store.set_p_offset(p_offset)
+
+    async def _run_telemetry_task(self, client: aiomqtt.Client) -> None:
+        """Push telemetry data periodically."""
+        async for _ in async_fixed_time_intervals(conf.TELEMETRY_INTERVAL):
+            payload = self._store.em_readings.as_json()
+            await client.publish(conf.TOPIC_MEASUREMENTS, payload)
+
                 
