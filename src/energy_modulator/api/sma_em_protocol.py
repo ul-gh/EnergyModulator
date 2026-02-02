@@ -2,7 +2,8 @@
 
 import asyncio
 import logging
-from dataclasses import dataclass
+import json
+from dataclasses import asdict, dataclass
 from typing import cast, final, override
 
 from pysmaplus.definitions_speedwire import speedwireHeader, speedwireHeader6069
@@ -25,30 +26,30 @@ class EmHeader:
     sw_version: str
 
 
-@final
+@dataclass
 class EmReadings:
     """Represents floating-point energy meter readings."""
 
     # Header data
     em_header: EmHeader | None = None
     # Power import (positive) or export (negative) in Watts.
-    power = float("NaN")
+    power: float = float("NaN")
     # Energy import and eyport in kWh
-    energy_import = float("NaN")
-    energy_export = float("NaN")
+    energy_import: float = float("NaN")
+    energy_export: float = float("NaN")
     # Frequency in Hz
-    frequency = float("NaN")
+    frequency: float = float("NaN")
     # Power import (positive) or export (negative) in Watts.
-    power_l1 = float("NaN")
-    power_l2 = float("NaN")
-    power_l3 = float("NaN")
+    power_l1: float = float("NaN")
+    power_l2: float = float("NaN")
+    power_l3: float = float("NaN")
     # Current in Amps and Voltages in Volts.
-    current_l1 = float("NaN")
-    voltage_l1 = float("NaN")
-    current_l2 = float("NaN")
-    voltage_l2 = float("NaN")
-    current_l3 = float("NaN")
-    voltage_l3 = float("NaN")
+    current_l1: float = float("NaN")
+    voltage_l1: float = float("NaN")
+    current_l2: float = float("NaN")
+    voltage_l2: float = float("NaN")
+    current_l3: float = float("NaN")
+    voltage_l3: float = float("NaN")
 
     def update(self, em_header: EmHeader, obis_measurements: dict[str, int]) -> None:
         """Update EmReadings with decoded values from UDP receiver.
@@ -75,6 +76,10 @@ class EmReadings:
             self.voltage_l3 = obis_measurements["72:4:0"] / 1000.0
         except (TypeError, KeyError, ValueError):
             pass
+    
+    def as_json(self) -> str:
+        """Return EmReadings in JSON format (for MQTT telemetry)."""
+        return json.dumps(asdict(self))
 
 
 def decode_speedwire_em_datagram(p: bytes, addr: tuple[str, int]) -> tuple[EmHeader, dict[str, int]]:

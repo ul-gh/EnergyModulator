@@ -63,7 +63,10 @@ class MqttConfig:
     TOPIC_MEASUREMENTS: str = "tele/energy_modulator/measurements"
     BROKER: str = "nas1"
     PORT: int = 1883
+    # Timeout in seconds for initial connection to the broker
+    # and for re-connection.
+    RECONNECT_TIMEOUT: float = 4.0
     # MQTT minimum broadcast (transmit) time interval in seconds.
     # If the inverter stops requesting energy meter data,
     # MQTT broadcast is also stopped.
-    INTERVAL: float = 10.0
+    TELEMETRY_INTERVAL: float = 10.0
