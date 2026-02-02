@@ -2,6 +2,7 @@
 
 2025-12-25 Ulrich Lukas
 """
+
 # ruff: noqa: ERA001, S104, S108
 from dataclasses import dataclass
 from importlib.metadata import version
@@ -17,8 +18,7 @@ class LocalLoggerConfig:
     """Settings for local logging."""
 
     # Log output time interval in seconds.
-    # FIXME: Change value for production!
-    LOG_INTERVAL: float = 1.0
+    LOG_INTERVAL: float = 60.0
 
 
 @dataclass
@@ -26,7 +26,7 @@ class Sdm630EmulatorConfig:
     """Settings for emulated SDM630 energy meter."""
 
     # Serial port connected to Modbus-"Meter" port of the inverter
-    #modbus_port: str = "/dev/ttyUSB1"
+    # modbus_port: str = "/dev/ttyUSB1"
     modbus_port: str = "/tmp/ttyV0"
     baudrate: int = 9600
     version: str = version("energy_modulator")

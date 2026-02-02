@@ -1,11 +1,12 @@
 """State storage for energy_modulator."""
 
 from collections.abc import Callable
-from typing import Self
+from typing import Self, final
 
 from energy_modulator.api.sma_em_protocol import EmReadings
 
 
+@final
 class EnergyModulatorStore:
     """Application state representation for Energy Modulator Server.
 

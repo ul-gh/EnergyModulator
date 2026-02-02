@@ -5,11 +5,10 @@ This is part of Energy Meter Gateway for Battery Inverter Feed-In Power Control.
 Author: Ulrich Lukas
 License: GPL v.3
 """
-# FIXME: bug in device:164 "set" in parameter description, must be "info_name"
-# FIXME: bug in sparse:121 Only type "list" is recognized
 
 import asyncio
 import struct
+from typing import final
 
 from pymodbus import ModbusDeviceIdentification
 from pymodbus.datastore import (
@@ -32,6 +31,7 @@ REG_OFFSET_L1_POWER: int = 12
 SDM630_DEVICE_ID: int = 1
 
 
+@final
 class Sdm630Emulator:
     """SDM630 Modbus meter emulator for live power control."""
 
@@ -101,7 +101,7 @@ class Sdm630Emulator:
         context = self._device_context
         # Using the device context setValues() function to modify data.
         # Above context store setter methods assume zero-based register offset values
-        context.setValues(function_code, REG_OFFSET_L1_POWER, reg_vals_l1_l2_l3)
+        _ = context.setValues(function_code, REG_OFFSET_L1_POWER, reg_vals_l1_l2_l3)
         # Third option is directly modifying the data block.
         # But the data block setter method assumes one-based offsets...
         # self._data.setValues(REG_OFFSET_L1_POWER + 1, l1_l2_l3_vals)  # noqa: ERA001

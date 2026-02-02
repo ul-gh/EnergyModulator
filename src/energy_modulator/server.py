@@ -2,24 +2,24 @@
 
 See documentation in README.md.
 """
+# pyright: reportUninitializedInstanceVariable=false
 
 import argparse
 import asyncio
 import logging
 from types import TracebackType
-from typing import Self
+from typing import Self, final
 
 from energy_modulator.api.local_logger import LocalLogger
 from energy_modulator.api.mqtt_api import MqttApi
 from energy_modulator.api.sdm630_emulator import Sdm630Emulator
 from energy_modulator.api.sma_em_receiver import SmaEmReceiver
-
-# from energy_modulator.conf.energy_modulator_config import EnergyModulatorServerConfig as conf
 from energy_modulator.store import EnergyModulatorStore
 
 logger = logging.getLogger(__name__)
 
 
+@final
 class EnergyModulatorServer:
     """Energy Modulator Server App."""
 
@@ -41,7 +41,7 @@ class EnergyModulatorServer:
         # Application state storage object.
         self.store = EnergyModulatorStore()
         # Fixed time-cycle CSV logger.
-        if self.cmdline.datalog:
+        if self.cmdline.datalog:  # pyright: ignore[reportAny]
             self.local_logger = LocalLogger(self.store)
         # UDP multicast endpoint receiving datagrams from energy meter using SMA EM protocol.
         self.sma_em_receiver = SmaEmReceiver(self.store)
@@ -51,7 +51,7 @@ class EnergyModulatorServer:
         self.mqtt_api = MqttApi(self.store)
         async with asyncio.TaskGroup() as tg:
             self.tasks.append(tg.create_task(self.sma_em_receiver.run_forever(), name="sma_em_receiver"))
-            if self.cmdline.datalog:
+            if self.cmdline.datalog:  # pyright: ignore[reportAny]
                 self.tasks.append(tg.create_task(self.local_logger.run_forever(), name="local_logger"))
             self.tasks.append(tg.create_task(self.sdm630_emulator.run_forever(), name="sdm630_emulator"))
             self.tasks.append(tg.create_task(self.mqtt_api.run_forever(), name="mqtt_api"))
@@ -61,7 +61,7 @@ class EnergyModulatorServer:
         logger.info("EnergyModulatorServer.stop() called..")
         self.sma_em_receiver.stop()
         for task in self.tasks:
-            task.cancel()
+            _ = task.cancel()
         self.tasks.clear()
 
     def __enter__(self) -> Self:

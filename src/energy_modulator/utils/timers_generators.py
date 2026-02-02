@@ -1,3 +1,5 @@
+"""Timing generators and functions."""
+
 import asyncio
 import time
 from collections.abc import AsyncGenerator, Callable, Generator
@@ -153,7 +155,7 @@ def repeat_periodic(
     # Begin initial test cycle
     counter = count(resume_at) if n_repeats is None else range(resume_at, n_repeats)
     for run_no in counter:
-        fn(run_no)
+        _ = fn(run_no)
         # Calculate remaining time to sleep until next cycle starts
         time_remaining = time_end - time.time()
         # If run took less than a period, set remaining time

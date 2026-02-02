@@ -33,11 +33,11 @@ class SmaEmReceiver:
 
     def __init__(self, store: EnergyModulatorStore) -> None:
         """Initialize SmaEmReceiver."""
-        self.store = store
+        self.store: EnergyModulatorStore = store
 
     async def run_forever(self) -> None:
         """Run UDP multicast endpoint task and data processing task."""
-        self.data_received = SingleItemQueue()
+        self.data_received = SingleItemQueue[EmReadings]()
         while True:
             async with asyncio.TaskGroup() as tg:
                 logger.info("Launching SmaEmReceiver tasks...")
@@ -55,8 +55,8 @@ class SmaEmReceiver:
     def stop(self) -> None:
         """Cancel all SmaEmReceiver tasks."""
         logger.info("SmaEmReceiver.stop() called..")
-        self._state_updater_task.cancel()
-        self._udp_multicast_endpoint_task.cancel()
+        _ = self._state_updater_task.cancel()
+        _ = self._udp_multicast_endpoint_task.cancel()
 
     async def _run_state_updater(self) -> None:
         """Update application state data store."""

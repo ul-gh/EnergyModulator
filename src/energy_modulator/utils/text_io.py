@@ -1,3 +1,5 @@
+"""Text output helpers."""
+
 import sys
 from pathlib import Path
 from types import TracebackType
@@ -31,8 +33,9 @@ class FileAndStdout(TextIO):
 
 
 class TextLogWriter:
-    """Context manager implementing a text logging method
-    for simultaneous file and screen output.
+    """Text logger for simultaneous file and screen output.
+
+    Use as a context-manager.
     """
 
     _file_path: str | Path | None
@@ -96,8 +99,7 @@ class TextLogWriter:
 
 
 class TextScreen:
-    """Output arbitrary number of lines of text, while re-using the screen
-    area previously written to.
+    """Output lines of text, re-using the screen area previously written to.
 
     For this, text is put in a buffer using the put() method, and output is
     written to the screen all at once when the refresh() method is called.
@@ -127,7 +129,7 @@ class TextScreen:
     def refresh(self) -> None:
         """Write output from buffer to screen, clearing previous content."""
         clear_code = f"\x1b[{self._lines_printed}F" if self._lines_printed else ""
-        print(f"{clear_code}{self._text_buffer}", end="")
+        print(f"{clear_code}{self._text_buffer}", end="")  # noqa: T201
         self._lines_printed = self._lines_in_buffer
         self._text_buffer = ""
         self._lines_in_buffer = 0

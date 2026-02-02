@@ -3,6 +3,7 @@
 import asyncio
 import logging
 from dataclasses import dataclass
+from typing import cast, final, override
 
 from pysmaplus.definitions_speedwire import speedwireHeader, speedwireHeader6069
 
@@ -24,6 +25,7 @@ class EmHeader:
     sw_version: str
 
 
+@final
 class EmReadings:
     """Represents floating-point energy meter readings."""
 
@@ -47,7 +49,6 @@ class EmReadings:
     voltage_l2 = float("NaN")
     current_l3 = float("NaN")
     voltage_l3 = float("NaN")
-
 
     def update(self, em_header: EmHeader, obis_measurements: dict[str, int]) -> None:
         """Update EmReadings with decoded values from UDP receiver.
@@ -132,11 +133,12 @@ def decode_speedwire_em_datagram(p: bytes, addr: tuple[str, int]) -> tuple[EmHea
     return header, obis_measurements
 
 
+@final
 class SmaEmProtocol(asyncio.DatagramProtocol):
     """Protocol handlers as required by asyncio low-level API."""
 
     # Set when connection is made.
-    _transport_udp: asyncio.DatagramTransport
+    _transport_udp: asyncio.DatagramTransport  # pyright: ignore[reportUninitializedInstanceVariable]
 
     def __init__(
         self,
@@ -148,6 +150,7 @@ class SmaEmProtocol(asyncio.DatagramProtocol):
         self._connection_lost = connection_lost
         self._em_readings = EmReadings()
 
+    @override
     def connection_made(self, transport: asyncio.DatagramTransport) -> None:
         """Callback called when a connection is made.
 
@@ -158,13 +161,14 @@ class SmaEmProtocol(asyncio.DatagramProtocol):
         self._transport_udp = transport
         logger.info("Connection made..")
 
+    @override
     def datagram_received(self, data: bytes, addr: tuple[str, int]) -> None:
         """Callback called when a UDP datagram arrives."""
         try:
             header, obis_measurements = decode_speedwire_em_datagram(data, addr)
             self._em_readings.update(header, obis_measurements)
         except (KeyError, ValueError, TypeError, UnicodeDecodeError) as e:
-            logger.error("Error decoding SMA EM datagram: %s", e.args[0])  # noqa: TRY400
+            logger.error("Error decoding SMA EM datagram: %s", cast("str", e.args[0]))  # noqa: TRY400
             return
         if conf.EXPECTED_DEVICE is not None and header.serial != conf.EXPECTED_DEVICE:
             msg = "Received telegram from different device serial number. Wanted: %d.  Got: %d"
@@ -172,6 +176,7 @@ class SmaEmProtocol(asyncio.DatagramProtocol):
             return
         self._data_received.put_nowait(self._em_readings)
 
+    @override
     def error_received(self, exc: Exception) -> None:
         """Callback called when a send or receive operation raises an OSError.
 
@@ -183,6 +188,7 @@ class SmaEmProtocol(asyncio.DatagramProtocol):
             return
         self._connection_lost.set_exception(exc)
 
+    @override
     def connection_lost(self, exc: Exception | None) -> None:
         """Callback called when the connection is lost or closed.
 

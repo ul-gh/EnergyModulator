@@ -1,6 +1,10 @@
 """Async data structures."""
 
 import asyncio
+from typing import TYPE_CHECKING, override
+
+if TYPE_CHECKING:
+    from asyncio.events import AbstractEventLoop
 
 
 class SingleItemQueue[ItemType]:
@@ -14,7 +18,7 @@ class SingleItemQueue[ItemType]:
 
     def __init__(self) -> None:
         """Init SingleItemQueue."""
-        self._loop = asyncio.get_running_loop()
+        self._loop: AbstractEventLoop = asyncio.get_running_loop()
         self._data: asyncio.Future[ItemType] = self._loop.create_future()
 
     async def get(self) -> ItemType:
@@ -51,14 +55,15 @@ class HybridFifoQueue[ItemType](asyncio.Queue[ItemType]):
         """Init AsyncReceiveQueue."""
         super().__init__(maxsize)
 
+    @override
     def put_nowait(self, item: ItemType) -> None:
-        """Callback called when a UDP datagram arrives."""  # noqa: D401
+        """Callback called when a UDP datagram arrives."""
         try:
             super().put_nowait(item)
         # If queue is full, we first discard the oldest entry and try again.
         except asyncio.QueueFull:
             try:
-                super().get_nowait()
+                _ = super().get_nowait()
                 super().put_nowait(item)
             # Queue could have been drained by reading in between.
             except asyncio.QueueEmpty:

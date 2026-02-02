@@ -2,7 +2,7 @@
 
 import contextlib
 import logging
-from typing import cast
+from typing import final
 
 import aiomqtt
 
@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 MQTT_TIMEOUT: float = 5.0
 
 
+@final
 class MqttApi:
     """Energy Modulator MQTT API for remote control and telemetry."""
 
@@ -29,9 +30,9 @@ class MqttApi:
             clean_session=True,
             timeout=MQTT_TIMEOUT,
         ) as client:
-            await client.subscribe(conf.TOPIC_POWER_CONTROL)
+            _ = await client.subscribe(conf.TOPIC_POWER_CONTROL)
             p_offset = 0.0
             async for msg in client.messages:
                 with contextlib.suppress(ValueError):
-                    p_offset = float(cast("bytes", msg.payload))
+                    p_offset = float(msg.payload)
                 await self._store.set_p_offset(p_offset)

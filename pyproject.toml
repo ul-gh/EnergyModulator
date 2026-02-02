@@ -58,8 +58,8 @@ exclude = [
 select = ["ALL"]
 ignore = [
     #"E501",  # line too long
-    "N813", # Import CamelCase as snake_case
-    "D401", # Docstring mood
+    "N813",
+    "D401",
 ]
 fixable = ["ALL"]
 #unfixable = []

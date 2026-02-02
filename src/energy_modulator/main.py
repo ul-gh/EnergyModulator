@@ -4,31 +4,27 @@
 
 See documentation in README.md.
 """
+
 import argparse
 import asyncio
 import logging
 import sys
 import threading
 from collections.abc import Coroutine
-from typing import Any
 
 from energy_modulator.server import EnergyModulatorServer
 
 parser = argparse.ArgumentParser(prog=__package__, description=__doc__)
-parser.add_argument("-v", "--verbose", action="store_true",
-                    help="Set loglevel to DEBUG")
-parser.add_argument("-q", "--quiet", action="store_true",
-                    help="Set loglevel to WARNING")
-parser.add_argument("-d", "--daemon", action="store_true",
-                    help="Run in background thread with task supervision.")
-parser.add_argument("--datalog", action="store_true",
-                    help="Activate logging of measurement data.")
+_ = parser.add_argument("-v", "--verbose", action="store_true", help="Set loglevel to DEBUG")
+_ = parser.add_argument("-q", "--quiet", action="store_true", help="Set loglevel to WARNING")
+_ = parser.add_argument("-d", "--daemon", action="store_true", help="Run in background thread with task supervision.")
+_ = parser.add_argument("--datalog", action="store_true", help="Activate logging of measurement data.")
 cmdline = parser.parse_args()
 
 
-if cmdline.verbose:
+if cmdline.verbose:  # pyright: ignore[reportAny]
     logging.basicConfig(level=logging.DEBUG)
-elif cmdline.quiet:
+elif cmdline.quiet:  # pyright: ignore[reportAny]
     logging.basicConfig(level=logging.WARNING)
 else:
     logging.basicConfig(level=logging.INFO)
@@ -39,7 +35,7 @@ server: EnergyModulatorServer
 main_thread: threading.Thread
 
 
-def wait_for(coro: Coroutine[Any, Any, object]) -> object:
+def wait_for(coro: Coroutine[object, object, object]) -> object:
     """Run coroutine on the server event loop and return the result.
 
     Intended for diagnostics and debugging use when running in a REPL (IPython).
@@ -73,7 +69,7 @@ def stop() -> None:
 def main() -> None:
     """Run Energy Modulator Server."""
     try:
-        if cmdline.daemon:
+        if cmdline.daemon:  # pyright: ignore[reportAny]
             logger.info("Starting Energy Modulator Server in background thread.")
             start()
         else:
