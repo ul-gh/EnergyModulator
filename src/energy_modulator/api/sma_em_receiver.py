@@ -43,12 +43,12 @@ class SmaEmReceiver:
                 logger.info("Launching SmaEmReceiver tasks...")
                 # Produces EmReadings and puts in self.data_received.
                 self._udp_multicast_endpoint_task = tg.create_task(
-                    self._run_udp_multicast_endpoint(),
+                    self._run_udp_multicast_endpoint_task(),
                     name="udp_multicast_endpoint_task",
                 )
                 # Consumes EmReadings from self.data_received.
                 self._state_updater_task = tg.create_task(
-                    self._run_state_updater(),
+                    self._run_state_updater_task(),
                     name="state_updater_task",
                 )
 
@@ -58,13 +58,7 @@ class SmaEmReceiver:
         _ = self._state_updater_task.cancel()
         _ = self._udp_multicast_endpoint_task.cancel()
 
-    async def _run_state_updater(self) -> None:
-        """Update application state data store."""
-        while True:
-            em_readings = await self.data_received.get()
-            await self.store.set_em_readings(em_readings)
-
-    async def _run_udp_multicast_endpoint(self) -> None:
+    async def _run_udp_multicast_endpoint_task(self) -> None:
         """Receive incoming UDP multicast datagrams.
 
         This adds a task running the UDP multicast endpoint to the event loop
@@ -84,6 +78,12 @@ class SmaEmReceiver:
             await connection_lost
         finally:
             transport.close()
+
+    async def _run_state_updater_task(self) -> None:
+        """Update application state data store."""
+        while True:
+            em_readings = await self.data_received.get()
+            await self.store.set_em_readings(em_readings)
 
     def _create_udp_multicast_socket(self) -> socket.socket:
         # This can be socket.AF_INET (IPv4) or socket.AF_INET6 (IPv6).
