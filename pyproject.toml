@@ -58,6 +58,7 @@ exclude = [
 select = ["ALL"]
 ignore = [
     #"E501",  # line too long
+    "N813", # Camelcase Imported As Lowercase 
 ]
 fixable = ["ALL"]
 #unfixable = []
