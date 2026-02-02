@@ -9,11 +9,10 @@ import asyncio
 import logging
 import sys
 import threading
-
-from typing import Coroutine, Any
+from collections.abc import Coroutine
+from typing import Any
 
 from energy_modulator.server import EnergyModulatorServer
-
 
 parser = argparse.ArgumentParser(prog=__package__, description=__doc__)
 parser.add_argument("-v", "--verbose", action="store_true",
@@ -22,6 +21,8 @@ parser.add_argument("-q", "--quiet", action="store_true",
                     help="Set loglevel to WARNING")
 parser.add_argument("-d", "--daemon", action="store_true",
                     help="Run in background thread with task supervision.")
+parser.add_argument("--datalog", action="store_true",
+                    help="Activate logging of measurement data.")
 cmdline = parser.parse_args()
 
 
@@ -40,7 +41,7 @@ main_thread: threading.Thread
 
 def wait_for(coro: Coroutine[Any, Any, object]) -> object:
     """Run coroutine on the server event loop and return the result.
-    
+
     Intended for diagnostics and debugging use when running in a REPL (IPython).
     """
     future = asyncio.run_coroutine_threadsafe(coro, server.loop)
@@ -50,7 +51,7 @@ def wait_for(coro: Coroutine[Any, Any, object]) -> object:
 def run_server() -> None:
     """Run app in foreground (also as a system service)."""
     global server
-    with EnergyModulatorServer() as server:
+    with EnergyModulatorServer(cmdline) as server:
         asyncio.run(server.run_forever())
 
 
@@ -69,7 +70,7 @@ def stop() -> None:
     main_thread.join()
 
 
-def main():
+def main() -> None:
     """Run Energy Modulator Server."""
     try:
         if cmdline.daemon:
@@ -83,7 +84,7 @@ def main():
         stop()
         if "get_ipython" not in locals():
             sys.exit(0)
-    except Exception:  # noqa: BLE001
+    except Exception:
         # Main task should never terminate.
         logger.exception("Exception in main()!")
         stop()

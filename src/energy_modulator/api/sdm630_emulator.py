@@ -21,12 +21,12 @@ from pymodbus.datastore import (
 from pymodbus.framer import FramerType
 from pymodbus.server import ModbusSerialServer
 
-from energy_modulator.conf.energy_modulator_config import Sdm630EmulatorConfig as conf  # noqa: N813
+from energy_modulator.conf.energy_modulator_config import Sdm630EmulatorConfig as conf
 from energy_modulator.store import EnergyModulatorStore
 
 REG_OFFSET_L1_POWER: int = 12
-# REG_OFFSET_L2_POWER: int = 14
-# REG_OFFSET_L3_POWER: int = 16
+# REG_OFFSET_L2_POWER: int = 14  # noqa: ERA001
+# REG_OFFSET_L3_POWER: int = 16  # noqa: ERA001
 
 # Device (Modbus slave) ID
 SDM630_DEVICE_ID: int = 1
@@ -64,7 +64,7 @@ class Sdm630Emulator:
                 "ProductName": "EnergyModulator",
                 "ModelName": "Sdm630Emulator",
                 "MajorMinorRevision": conf.version,
-            }
+            },
         )
         self.server = ModbusSerialServer(
             context=self._server_context,  # Data storage
@@ -96,7 +96,7 @@ class Sdm630Emulator:
         # respective input register setter functions by pymodbus.
         function_code: int = 0x04
         # Getting device context from server context is one option
-        # context = self._server_context[SDM630_DEVICE_ID]
+        # context = self._server_context[SDM630_DEVICE_ID]  # noqa: ERA001
         # Getting device context from instance attribute is another option
         context = self._device_context
         # Using the device context setValues() function to modify data.
@@ -104,7 +104,7 @@ class Sdm630Emulator:
         context.setValues(function_code, REG_OFFSET_L1_POWER, reg_vals_l1_l2_l3)
         # Third option is directly modifying the data block.
         # But the data block setter method assumes one-based offsets...
-        # self._data.setValues(REG_OFFSET_L1_POWER + 1, l1_l2_l3_vals)
+        # self._data.setValues(REG_OFFSET_L1_POWER + 1, l1_l2_l3_vals)  # noqa: ERA001
 
     def _float_to_big_endian_reg_vals(self, power_l1: float, power_l2: float, power_l3: float) -> list[int]:
         """Convert three phase power values to Modbus register values."""

@@ -2,9 +2,10 @@
 
 import asyncio
 import logging
-
 from dataclasses import dataclass
+
 from pysmaplus.definitions_speedwire import speedwireHeader, speedwireHeader6069
+
 from energy_modulator.conf.energy_modulator_config import SmaEmReceiverConfig as conf
 from energy_modulator.utils import SingleItemQueue
 
@@ -15,7 +16,7 @@ logger = logging.getLogger(__name__)
 class EmHeader:
     """EM protocol header data."""
 
-    protocolID: int
+    protocolID: int  # noqa: N815
     susyid: int
     device: str
     serial: int
@@ -47,14 +48,17 @@ class EmReadings:
     current_l3 = float("NaN")
     voltage_l3 = float("NaN")
 
-    def __init__(self, em_header: EmHeader, obis_measurements: dict[str, int]) -> None:
-        """Initialize EmReadings.
+
+    def update(self, em_header: EmHeader, obis_measurements: dict[str, int]) -> None:
+        """Update EmReadings with decoded values from UDP receiver.
 
         This sets the header data and translates raw measurement results
         (identified by OBIS ID) into float readings.
+
+        Errors are silently discarded.
         """
+        self.em_header = em_header
         try:
-            self.em_header = em_header
             self.power = (obis_measurements["1:4:0"] - obis_measurements["2:4:0"]) / 10.0
             self.energy_import = obis_measurements["1:8:0"] / 3600000.0
             self.energy_export = obis_measurements["2:8:0"] / 3600000.0
@@ -73,12 +77,14 @@ class EmReadings:
 
 
 def decode_speedwire_em_datagram(p: bytes, addr: tuple[str, int]) -> tuple[EmHeader, dict[str, int]]:
-    """Decode a Speedwire-Packet
+    """Decode a Speedwire-Packet.
 
-    Args:
+    Parameters
+    ----------
         p: Network-Packet
 
-    Returns:
+    Returns
+    -------
         dict: Dict with all the decoded information
 
     Decode function based on pysmaplus@5e49754ecc73af0e5a5ff02b36afc7a164ce3684
@@ -88,7 +94,8 @@ def decode_speedwire_em_datagram(p: bytes, addr: tuple[str, int]) -> tuple[EmHea
     """
     sw = speedwireHeader.from_packed(p[0:18])
     if not sw.check6069():
-        raise ValueError("Decoding speedwire packed failed. Wrong header!")
+        msg = "Decoding speedwire packed failed. Wrong header!"
+        raise ValueError(msg)
     sw6069 = speedwireHeader6069.from_packed(p[18:28])
     header = EmHeader(
         protocolID=sw.protokoll,
@@ -113,14 +120,15 @@ def decode_speedwire_em_datagram(p: bytes, addr: tuple[str, int]) -> tuple[EmHea
             value = int.from_bytes(p[pos + 4 : pos + 4 + mtyp], byteorder="big")
             obis_measurements[obis] = value
             pos += 4 + mtyp
-        elif mchannel == 144 and mtyp == 0:
+        elif mchannel == 144 and mtyp == 0:  # noqa: PLR2004
             value = f"{p[pos + 4]}.{p[pos + 5]}.{p[pos + 6]}.{chr(p[pos + 7])}"
             header.sw_version = value
             pos += 4 + 4
         else:
-            # If we silently ignore this here, position has to be increased:
-            # pos += 4 + 4
-            raise ValueError("Decoding speedwire packed failed. Invalid data!")
+            # If we silently ignore the error, increase position. Does not hurt when raising.
+            pos += 4 + 4
+            msg = "Decoding speedwire packed failed. Invalid data!"
+            raise ValueError(msg)
     return header, obis_measurements
 
 
@@ -138,6 +146,7 @@ class SmaEmProtocol(asyncio.DatagramProtocol):
         """Initialize SmaEmProtocol."""
         self._data_received = data_received
         self._connection_lost = connection_lost
+        self._em_readings = EmReadings()
 
     def connection_made(self, transport: asyncio.DatagramTransport) -> None:
         """Callback called when a connection is made.
@@ -153,15 +162,15 @@ class SmaEmProtocol(asyncio.DatagramProtocol):
         """Callback called when a UDP datagram arrives."""
         try:
             header, obis_measurements = decode_speedwire_em_datagram(data, addr)
-            em_readings = EmReadings(header, obis_measurements)
+            self._em_readings.update(header, obis_measurements)
         except (KeyError, ValueError, TypeError, UnicodeDecodeError) as e:
-            logger.error("Error decoding SMA EM datagram: %s", e.args[0])
+            logger.error("Error decoding SMA EM datagram: %s", e.args[0])  # noqa: TRY400
             return
         if conf.EXPECTED_DEVICE is not None and header.serial != conf.EXPECTED_DEVICE:
             msg = "Received telegram from different device serial number. Wanted: %d.  Got: %d"
             logger.debug(msg, conf.EXPECTED_DEVICE, header.serial)
             return
-        self._data_received.put_nowait(em_readings)
+        self._data_received.put_nowait(self._em_readings)
 
     def error_received(self, exc: Exception) -> None:
         """Callback called when a send or receive operation raises an OSError.

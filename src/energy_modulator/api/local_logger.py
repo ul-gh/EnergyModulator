@@ -26,8 +26,7 @@ class LocalLogger:
         # Application data store
         self.store = store
         # Logger configuration
-        root_logger_level = logging.getLogger().level
-        self.logger = logging.Logger(__name__, level=root_logger_level)
+        self.logger = logging.Logger(__name__, level=logging.INFO)  # noqa: LOG001
         console_handler = logging.StreamHandler(sys.stdout)
         formatter = logging.Formatter(fmt="%(asctime)s, %(message)s", datefmt="%Y-%m-%d, %H:%M:%S")
         console_handler.setFormatter(formatter)
@@ -43,5 +42,5 @@ class LocalLogger:
             power_l1 = self.store.em_readings.power_l1
             power_l2 = self.store.em_readings.power_l2
             power_l3 = self.store.em_readings.power_l3
-            self.logger.debug(msg_p, power, power_l1, power_l2, power_l3)
-            self.logger.debug(msg_offset, self.store.p_offset)
+            self.logger.info(msg_p, power, power_l1, power_l2, power_l3)
+            self.logger.info(msg_offset, self.store.p_offset)

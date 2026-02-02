@@ -4,7 +4,6 @@
 """
 # ruff: noqa: ERA001, S104, S108
 from dataclasses import dataclass
-
 from importlib.metadata import version
 
 
@@ -16,9 +15,10 @@ class EnergyModulatorServerConfig:
 @dataclass
 class LocalLoggerConfig:
     """Settings for local logging."""
+
     # Log output time interval in seconds.
     # FIXME: Change value for production!
-    LOG_INTERVAL: float = 0.1
+    LOG_INTERVAL: float = 1.0
 
 
 @dataclass
@@ -61,7 +61,7 @@ class MqttConfig:
     ACTIVATED: bool = True
     TOPIC_POWER_CONTROL: str = "cmd/energy_modulator/set_power_offset"
     TOPIC_MEASUREMENTS: str = "tele/energy_modulator/measurements"
-    BROKER: str = "localhost"
+    BROKER: str = "nas1"
     PORT: int = 1883
     # MQTT minimum broadcast (transmit) time interval in seconds.
     # If the inverter stops requesting energy meter data,
