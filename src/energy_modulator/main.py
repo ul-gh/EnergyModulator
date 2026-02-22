@@ -1,16 +1,12 @@
 #!/usr/bin/env python3
-# ruff: noqa: PLW0603
 """Run Energy Modulator Server.
 
 See documentation in README.md.
 """
 
 import argparse
-import asyncio
 import logging
 import sys
-import threading
-from collections.abc import Coroutine
 
 from energy_modulator.server import EnergyModulatorServer
 
@@ -30,61 +26,23 @@ else:
     logging.basicConfig(level=logging.INFO)
 
 
-logger = logging.getLogger("energy_modulator:main")
-server: EnergyModulatorServer
-main_thread: threading.Thread
-
-
-def wait_for(coro: Coroutine[object, object, object]) -> object:
-    """Run coroutine on the server event loop and return the result.
-
-    Intended for diagnostics and debugging use when running in a REPL (IPython).
-    """
-    future = asyncio.run_coroutine_threadsafe(coro, server.loop)
-    return future.result()
-
-
-def run_server() -> None:
-    """Run app in foreground (also as a system service)."""
-    global server
-    with EnergyModulatorServer(cmdline) as server:
-        asyncio.run(server.run_forever())
-
-
-def start() -> None:
-    """Run app in new background thread."""
-    global main_thread
-    main_thread = threading.Thread(target=run_server, name="energy_modulator", daemon=False)
-    main_thread.start()
-    logger.info("App running in thread: %s", main_thread)
-
-
-def stop() -> None:
-    """Stop energy_modulator app."""
-    logger.info("stop() called..")
-    server.stop()
-    main_thread.join()
+energy_modulator = EnergyModulatorServer(cmdline)
 
 
 def main() -> None:
     """Run Energy Modulator Server."""
     try:
-        if cmdline.daemon:  # pyright: ignore[reportAny]
-            logger.info("Starting Energy Modulator Server in background thread.")
-            start()
+        if cmdline.daemon:
+            energy_modulator.run_threaded()
         else:
-            logger.info("Starting Energy Modulator Server")
-            run_server()
+            energy_modulator.run()
+        # Server thread or task should never terminate.
+        sys.exit(1)
     except KeyboardInterrupt:
         # Suppress sys.exit() when running interactively.
-        stop()
+        energy_modulator.stop()
         if "get_ipython" not in locals():
             sys.exit(0)
-    except Exception:
-        # Main task should never terminate.
-        logger.exception("Exception in main()!")
-        stop()
-        sys.exit(1)
 
 
 if __name__ == "__main__":

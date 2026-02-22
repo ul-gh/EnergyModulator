@@ -10,7 +10,7 @@ from energy_modulator.utils import async_fixed_time_intervals
 
 
 @final
-class LocalLogger:
+class DataLogger:
     """CSV log output of meter active power readings for total, L1, L2 and L3.
 
     Note: Log level is logging.INFO.
