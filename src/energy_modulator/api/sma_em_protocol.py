@@ -1,10 +1,10 @@
 """Protocol definition for async udp multicast endpoint and decoder for SMA EM datagrams."""
 
 import asyncio
-import logging
 import json
+import logging
 from dataclasses import asdict, dataclass
-from typing import cast, final, override
+from typing import cast, override
 
 from pysmaplus.definitions_speedwire import speedwireHeader, speedwireHeader6069
 
@@ -76,7 +76,7 @@ class EmReadings:
             self.voltage_l3 = obis_measurements["72:4:0"] / 1000.0
         except (TypeError, KeyError, ValueError):
             pass
-    
+
     def as_json(self) -> str:
         """Return EmReadings in JSON format (for MQTT telemetry)."""
         return json.dumps(asdict(self))
@@ -138,7 +138,7 @@ def decode_speedwire_em_datagram(p: bytes, addr: tuple[str, int]) -> tuple[EmHea
     return header, obis_measurements
 
 
-@final
+
 class SmaEmProtocol(asyncio.DatagramProtocol):
     """Protocol handlers as required by asyncio low-level API."""
 

@@ -2,14 +2,12 @@
 
 import logging
 import sys
-from typing import final
 
 from energy_modulator.conf.energy_modulator_config import LocalLoggerConfig as conf
 from energy_modulator.store import EnergyModulatorStore
 from energy_modulator.utils import async_fixed_time_intervals
 
 
-@final
 class DataLogger:
     """CSV log output of meter active power readings for total, L1, L2 and L3.
 

@@ -8,7 +8,6 @@ License: GPL v.3
 
 import asyncio
 import struct
-from typing import final
 
 from pymodbus import ModbusDeviceIdentification
 from pymodbus.datastore import (
@@ -31,7 +30,6 @@ REG_OFFSET_L1_POWER: int = 12
 SDM630_DEVICE_ID: int = 1
 
 
-@final
 class Sdm630Emulator:
     """SDM630 Modbus meter emulator for live power control."""
 

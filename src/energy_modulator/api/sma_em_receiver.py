@@ -7,7 +7,6 @@
 import asyncio
 import logging
 import socket
-from typing import final
 
 from energy_modulator.api.sma_em_protocol import EmReadings, SmaEmProtocol
 from energy_modulator.conf.energy_modulator_config import SmaEmReceiverConfig as conf
@@ -17,7 +16,6 @@ from energy_modulator.utils.async_buffers_queues import SingleItemQueue
 logger = logging.getLogger(__name__)
 
 
-@final
 class SmaEmReceiver:
     """Receive UDP multicast datagrams from SMA Home Manager or Energy Meter.
 

@@ -4,7 +4,6 @@
 import asyncio
 import contextlib
 import logging
-from typing import final
 
 import aiomqtt
 
@@ -15,9 +14,9 @@ from energy_modulator.utils import async_fixed_time_intervals
 logger = logging.getLogger(__name__)
 
 
-@final
 class MqttClient:
     """Energy Modulator MQTT client providing remote control API and telemetry."""
+
     _endpoint_task: asyncio.Task[None]
     _telemetry_task: asyncio.Task[None]
 
@@ -29,7 +28,7 @@ class MqttClient:
         try:
             await self._run_client_tasks()
         except aiomqtt.MqttError:
-            logger.error("Connection lost. Reconnecting...")
+            logger.error("Connection lost. Reconnecting...")  # noqa: TRY400
             await asyncio.sleep(conf.RECONNECT_TIMEOUT)
 
     async def _run_client_tasks(self) -> None:
@@ -39,16 +38,15 @@ class MqttClient:
             conf.PORT,
             clean_session=True,
             timeout=conf.RECONNECT_TIMEOUT,
-        ) as client:
-            async with asyncio.TaskGroup() as tg:
-                self._endpoint_task = tg.create_task(
-                    self._run_endpoint_task(client),
-                    name="MQTT control endpoint task",
-                )
-                self._telemetry_task = tg.create_task(
-                    self._run_telemetry_task(client),
-                    name="MQTT telemetry task",
-                )
+        ) as client, asyncio.TaskGroup() as tg:
+            self._endpoint_task = tg.create_task(
+                self._run_endpoint_task(client),
+                name="MQTT control endpoint task",
+            )
+            self._telemetry_task = tg.create_task(
+                self._run_telemetry_task(client),
+                name="MQTT telemetry task",
+            )
 
     async def _run_endpoint_task(self, client: aiomqtt.Client) -> None:
         """Subscribe to API control topic channel and process control messages."""
@@ -65,4 +63,3 @@ class MqttClient:
             payload = self._store.em_readings.as_json()
             await client.publish(conf.TOPIC_MEASUREMENTS, payload)
 
-                
