@@ -29,6 +29,16 @@ Repository = "https://github.com/ul-gh/EnergyModulator.git"
 requires = ["setuptools", "setuptools-git-versioning", "wheel"]
 build-backend = "setuptools.build_meta"
 
+[tool.basedpyright]
+reportUnknownMemberType = "hint"
+
+# Disable conflicting or duplicate rules of basedpyright with ruff
+reportImplicitStringConcatenation = false
+reportMissingParameterType = false
+reportUnusedImport = false
+
+exclude = [".venv", "docs"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["include"]
