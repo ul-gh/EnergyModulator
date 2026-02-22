@@ -21,6 +21,9 @@ class DataLogger:
     2025-12-26, 10:53:36, Active Power, W, Total, L1, L2, L3, xxx, xxx, xxx, xxx
     """
 
+    store: EnergyModulatorStore
+    logger: logging.Logger
+
     def __init__(self, store: EnergyModulatorStore) -> None:
         """Initialize LocalLogger."""
         # Application data store
