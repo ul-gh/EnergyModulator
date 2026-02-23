@@ -33,6 +33,14 @@ SDM630_DEVICE_ID: int = 1
 class Sdm630Emulator:
     """SDM630 Modbus meter emulator for live power control."""
 
+    _store: EnergyModulatorStore
+    _data: ModbusSparseDataBlock
+    _data_lock: asyncio.Lock
+    _device_context: ModbusDeviceContext
+    _server_context: ModbusServerContext
+    _identity: ModbusDeviceIdentification
+    _server: ModbusSerialServer
+
     def __init__(self, store: EnergyModulatorStore) -> None:
         """Initialize Sdm630Emulator from application config."""
         self._store = store
@@ -64,7 +72,7 @@ class Sdm630Emulator:
                 "MajorMinorRevision": conf.version,
             },
         )
-        self.server = ModbusSerialServer(
+        self._server = ModbusSerialServer(
             context=self._server_context,  # Data storage
             identity=self._identity,  # server identify
             port=conf.modbus_port,  # serial port
@@ -77,7 +85,7 @@ class Sdm630Emulator:
 
     async def run_forever(self) -> None:
         """Start SDM630 emulator server task."""
-        await self.server.serve_forever()
+        await self._server.serve_forever()
 
     def update_state(self, store: EnergyModulatorStore) -> None:
         """Update emulated state from application state store."""

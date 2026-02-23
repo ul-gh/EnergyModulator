@@ -12,11 +12,14 @@ class EnergyModulatorStore:
     This will commit state changes to the listeners.
     """
 
-    p_offset: float = 0.0
-    em_readings = EmReadings()
+    p_offset: float
+    em_readings: EmReadings
+    _update_callbacks: list[Callable[[Self], None]]
 
     def __init__(self) -> None:
-        self._update_callbacks: list[Callable[[Self], None]] = []
+        self.p_offset = 0.0
+        self.em_readings = EmReadings()
+        self._update_callbacks = []
 
     async def set_p_offset(self, p_offset: float) -> None:
         """Set power offset setpoint."""

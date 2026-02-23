@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 class MqttClient:
     """Energy Modulator MQTT client providing remote control API and telemetry."""
 
+    _store: EnergyModulatorStore
     _endpoint_task: asyncio.Task[None]
     _telemetry_task: asyncio.Task[None]
 

@@ -4,7 +4,7 @@ import asyncio
 import json
 import logging
 from dataclasses import asdict, dataclass
-from typing import cast, override
+from typing import cast, final, override
 
 from pysmaplus.definitions_speedwire import speedwireHeader, speedwireHeader6069
 
@@ -138,12 +138,12 @@ def decode_speedwire_em_datagram(p: bytes, addr: tuple[str, int]) -> tuple[EmHea
     return header, obis_measurements
 
 
-
+@final
 class SmaEmProtocol(asyncio.DatagramProtocol):
     """Protocol handlers as required by asyncio low-level API."""
 
     # Set when connection is made.
-    _transport_udp: asyncio.DatagramTransport  # pyright: ignore[reportUninitializedInstanceVariable]
+    _transport_udp: asyncio.DatagramTransport | None = None
 
     def __init__(
         self,
